@@ -1,19 +1,35 @@
-import { StyleSheet } from 'react-native';
+import {FlatList, StyleSheet} from 'react-native';
 
 import EditScreenInfo from '../components/EditScreenInfo';
 import { Text, View } from '../components/Themed';
 import { RootTabScreenProps } from '../types';
-import useMnemonic from "../hooks/useWalletClient";
+import useWalletInfo from "../hooks/useWalletClient";
+import {setStringAsync} from "expo-clipboard";
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<'TabOne'>) {
-  const mnemonic = useMnemonic();
+  const walletInfo = useWalletInfo();
+  const account = walletInfo?.accounts[0];
+
+  const copyToClipboard = async () => {
+      let authURL = walletInfo?.authURL.toString()
+      await setStringAsync(authURL ? authURL : "");
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
+      <Text style={styles.title}>Mobile</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       <EditScreenInfo path="/screens/TabOneScreen.tsx" />
-      <Text>Mnemonic: ${mnemonic}</Text>
+      <Text>Mnemonic: {walletInfo?.mnemonic}</Text>
+      <Text>Account: {account?.address}</Text>
+
+        <Text onPress={copyToClipboard}>{walletInfo?.authURL.toString()}</Text>
+        <Text>Grants:</Text>
+      <FlatList
+          data={walletInfo?.grants}
+          keyExtractor={(item, index) => String(index)}
+          renderItem={(e) => <Text>{e.item.authorization.typeUrl}</Text>}
+      />
     </View>
   );
 }
