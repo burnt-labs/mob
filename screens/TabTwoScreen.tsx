@@ -4,7 +4,6 @@ import EditScreenInfo from '../components/EditScreenInfo';
 import { Text, View } from '../components/Themed';
 import useWalletInfo from "../hooks/useWalletClient";
 import {setStringAsync} from "expo-clipboard";
-// import Barcode from 'react-native-barcode-expo';
 import { GrazProvider, mainnetChains } from "graz";
 
 export default function TabTwoScreen() {
@@ -15,23 +14,20 @@ export default function TabTwoScreen() {
     await setStringAsync(authURL ? authURL : "");
   };
 
-  // let barcodeValue = "ticket info";
-
   return (
       <View style={styles.container}>
         <Text style={styles.title}>Desktop</Text>
-        {/*<GrazProvider*/}
-        {/*    // optional*/}
-        {/*    grazOptions={{*/}
-        {/*      defaultChain: mainnetChains.cosmoshub,*/}
-        {/*    }}*/}
-        {/*>*/}
-        {/*  /!*<Wallet />*!/*/}
-        {/*</GrazProvider>*/}
+        <GrazProvider
+            // optional
+            grazOptions={{
+              defaultChain: mainnetChains.cosmoshub,
+            }}
+        >
+          {/*<Wallet />*/}
+        </GrazProvider>
         <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
         <EditScreenInfo path="/screens/TabTwoScreen.tsx" />
         <Text onPress={copyToClipboard}>{walletInfo?.authURL.toString()}</Text>
-        {/*<Barcode value={barcodeValue}  text={"ticket barcode"} onError={console.error}/>*/}
       </View>
   );
 }
