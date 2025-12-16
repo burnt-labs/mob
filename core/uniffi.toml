@@ -1,0 +1,4 @@
+[bindings.ruby]
+cdylib_name = "mob"
+# Use a relative path to find the library in the same directory as the generated bindings
+library_path = "File.expand_path('libmob.dylib', __dir__)"

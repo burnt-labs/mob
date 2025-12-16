@@ -1,0 +1,20 @@
+# Include documentation
+include README.md
+include LICENSE
+include PYTHON_BINDINGS.md
+include PYTHON_SUMMARY.md
+
+# Include Rust source (needed for building)
+recursive-include core/src *.rs
+include core/Cargo.toml
+include core/build.rs
+include core/src/mob.udl
+
+# Include root config
+include Cargo.toml
+include pyproject.toml
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude target
