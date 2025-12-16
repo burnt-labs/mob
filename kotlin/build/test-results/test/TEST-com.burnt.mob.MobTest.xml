@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.burnt.mob.MobTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2025-12-16T23:19:25" hostname="invidia-2.local" time="3.261">
+  <properties/>
+  <testcase name="testCreateSigner()" classname="com.burnt.mob.MobTest" time="0.019"/>
+  <testcase name="testGetAccount()" classname="com.burnt.mob.MobTest" time="0.54"/>
+  <testcase name="testSignMessage()" classname="com.burnt.mob.MobTest" time="0.134"/>
+  <testcase name="testMultipleSigners()" classname="com.burnt.mob.MobTest" time="0.018"/>
+  <testcase name="testGetBalance()" classname="com.burnt.mob.MobTest" time="0.81"/>
+  <testcase name="testIsSynced()" classname="com.burnt.mob.MobTest" time="0.525"/>
+  <testcase name="testCoinCreation()" classname="com.burnt.mob.MobTest" time="0.014"/>
+  <testcase name="testGetChainId()" classname="com.burnt.mob.MobTest" time="0.155"/>
+  <testcase name="testGetHeight()" classname="com.burnt.mob.MobTest" time="0.75"/>
+  <testcase name="testInvalidMnemonic()" classname="com.burnt.mob.MobTest" time="0.014"/>
+  <testcase name="testInvalidAddress()" classname="com.burnt.mob.MobTest" time="0.141"/>
+  <testcase name="testCreateClient()" classname="com.burnt.mob.MobTest" time="0.121"/>
+  <system-out><![CDATA[✅ Signer address: xion169cpdh6qvytmn05gx3craeal869p9wcrt7ld5y
+✅ Account number: 399510, Sequence: 8
+✅ Signed message, signature length: 64 bytes
+✅ Account 0: xion169cpdh6qvytmn05gx3craeal869p9wcrt7ld5y
+✅ Account 1: xion1vjjyvuw8ftjg8enazlt9jkretk27rdvjnhjdjz
+✅ Balance: 952000 uxion
+✅ Node synced: true
+✅ Created coin: 1000000 uxion
+✅ Chain ID: xion-testnet-2
+✅ Current block height: 10747461
+✅ Invalid mnemonic properly rejected
+✅ Invalid address properly rejected
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

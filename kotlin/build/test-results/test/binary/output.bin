@@ -1,0 +1,49 @@
+
+.💸 Testing fund transfer on XION testnet...
+
+1️⃣  Test Configuration:
+   🔗 Chain: xion-testnet-2
+6   📡 RPC: https://rpc.xion-testnet-2.burnt.com:443
+<   👤 Sender: xion169cpdh6qvytmn05gx3craeal869p9wcrt7ld5y
+?   🎯 Recipient: xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4
+
+12️⃣  Creating client with signer attached...
+-   ✅ Client connected with signer attached
+
+$3️⃣  Querying sender balance...
+,   💰 Current uxion balance: 958000 uxion
+
+"4️⃣  Preparing transaction...
+J   📤 Sending 1000 uxion to xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4
+-   📝 Memo: Test fund transfer from Kotlin
+
+%5️⃣  Broadcasting transaction...
+)   ✅ Transaction broadcast successful!
+[   📝 Transaction hash: F5D65ED1CE02673021A866A94FCBF19D98559814B0589A7D026912DD5D27161E
+   📊 Code: 0
+'   ✅ Transaction accepted by mempool
+
+>6️⃣  Waiting for transaction confirmation (10 seconds)...
+
+(7️⃣  Querying transaction result...
+   ✅ Transaction confirmed!
+   📊 Final code: 0
+   ⛽ Gas used: 79883
+   ⛽ Gas wanted: 200000
+   📏 Block height: 10747457
+
+#🎉 Fund transfer test completed!
+
+@✅ Signer address: xion169cpdh6qvytmn05gx3craeal869p9wcrt7ld5y
+(✅ Account number: 399510, Sequence: 8
+/✅ Signed message, signature length: 64 bytes
+;✅ Account 0: xion169cpdh6qvytmn05gx3craeal869p9wcrt7ld5y
+;✅ Account 1: xion1vjjyvuw8ftjg8enazlt9jkretk27rdvjnhjdjz
+✅ Balance: 952000 uxion
+	✅ Node synced: true
+
+ ✅ Created coin: 1000000 uxion
+✅ Chain ID: xion-testnet-2
+#✅ Current block height: 10747461
+'✅ Invalid mnemonic properly rejected
+&✅ Invalid address properly rejected
