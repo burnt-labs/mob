@@ -1,0 +1,44 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# UniFFI generated files
+*.jar
+*.aar
+*.xcframework
+*.framework
+
+# Build artifacts
+/android/build/
+/apple/.build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Ruby
+*.gem
+.bundle/
+vendor/
+
+# Kotlin
+*.class
+*.kotlin_module

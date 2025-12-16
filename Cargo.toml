@@ -1,0 +1,16 @@
+[workspace]
+members = ["core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Burnt Labs"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/burnt-labs/mob"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

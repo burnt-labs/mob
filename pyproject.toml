@@ -1,0 +1,65 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "mob-xion"
+version = "0.1.0"
+description = "Multi-platform signing client for XION blockchain"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+keywords = ["blockchain", "crypto", "xion", "cosmos", "signing", "web3"]
+authors = [
+    {name = "Burnt Labs", email = "dev@burnt.com"}
+]
+maintainers = [
+    {name = "Burnt Labs", email = "dev@burnt.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Security :: Cryptography",
+]
+
+[project.urls]
+Homepage = "https://github.com/burnt-labs/mob"
+Documentation = "https://github.com/burnt-labs/mob/blob/main/PYTHON_BINDINGS.md"
+Repository = "https://github.com/burnt-labs/mob"
+Issues = "https://github.com/burnt-labs/mob/issues"
+
+[tool.maturin]
+# The Rust crate to build (our core library)
+manifest-path = "core/Cargo.toml"
+# Python source directory (for pure Python code if needed)
+python-source = "python"
+# Module name (will be importable as 'import mob')
+module-name = "mob"
+# Include additional files
+include = ["README.md", "LICENSE", "PYTHON_BINDINGS.md"]
+# Bindings type (UniFFI, not PyO3)
+bindings = "uniffi"
+
+[tool.black]
+line-length = 100
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.7"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
