@@ -1,8 +1,9 @@
 use thiserror::Error;
 
 /// Main error type for the mob library
-#[derive(Debug, Error, uniffi::Error)]
-#[uniffi(flat_error)]
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Error))]
+#[cfg_attr(feature = "uniffi-bindings", uniffi(flat_error))]
 pub enum MobError {
     /// RPC-related errors
     #[error("RPC error: {0}")]
@@ -70,6 +71,7 @@ impl From<cosmrs::ErrorReport> for MobError {
     }
 }
 
+#[cfg(feature = "rpc-client")]
 impl From<tendermint_rpc::Error> for MobError {
     fn from(err: tendermint_rpc::Error) -> Self {
         MobError::Rpc(err.to_string())

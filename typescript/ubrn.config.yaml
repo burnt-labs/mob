@@ -1,0 +1,38 @@
+# uniffi-bindgen-react-native configuration for mob library
+# This configures the generation of TypeScript/React Native bindings and WASM
+
+rust:
+  directory: ../core
+  manifestPath: ../core/Cargo.toml
+
+bindings:
+  ts: ./src/generated
+  uniffiToml: ../core/uniffi.toml
+
+# Web/WASM configuration - generates wasm-bindgen crate
+web:
+  manifestPath: ./wasm/Cargo.toml
+  wasmCrateName: mob-wasm
+  features: []
+  defaultFeatures: false
+  workspace: false
+  target: nodejs
+  tsBindings: ./src/generated
+  entrypoint: ./src/index.ts
+
+turboModule:
+  cpp: ./cpp
+  ts: ./src/generated
+  spec: Mob
+  entrypoint: ./src/index.ts
+
+# Don't overwrite these files when regenerating
+noOverwrite:
+  - "src/index.ts"
+  - "src/**/*.test.ts"
+  - "examples/**/*"
+  - "README.md"
+  - "QUICKSTART.md"
+  - "package.json"
+  - "tsconfig.json"
+  - "jest.config.js"

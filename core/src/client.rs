@@ -1,3 +1,7 @@
+// Only compile RPC client when rpc-client feature is enabled
+#[cfg(feature = "rpc-client")]
+use tendermint_rpc::{Client as TmClient, HttpClient};
+
 use crate::{
     account::Account,
     error::{MobError, Result},
@@ -7,10 +11,11 @@ use crate::{
 };
 use cosmrs::AccountId;
 use std::{str::FromStr, sync::Arc};
-use tendermint_rpc::{Client as TmClient, HttpClient};
 
 /// RPC client for interacting with the blockchain
-#[derive(uniffi::Object)]
+/// Only available with "rpc-client" feature (default)
+#[cfg(feature = "rpc-client")]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct Client {
     config: ChainConfig,
     rpc_client: HttpClient,
@@ -18,10 +23,11 @@ pub struct Client {
     account: Option<Account>,
 }
 
-#[uniffi::export]
+#[cfg(feature = "rpc-client")]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
 impl Client {
     /// Create a new RPC client (synchronous wrapper for FFI)
-    #[uniffi::constructor]
+    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
     pub fn new(config: ChainConfig) -> Result<Self> {
         // Create a runtime and block on the async operation
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -158,6 +164,7 @@ impl Client {
 }
 
 // Internal implementation
+#[cfg(feature = "rpc-client")]
 impl Client {
     /// Create a new RPC client (async version for internal use)
     /// Create a new RPC client (async version for internal use and tests)
@@ -205,6 +212,7 @@ impl Client {
 }
 
 // Internal implementation methods using &str for Rust ergonomics
+#[cfg(feature = "rpc-client")]
 impl Client {
     /// Refresh account information from the blockchain
     async fn refresh_account_info(&mut self) -> Result<()> {

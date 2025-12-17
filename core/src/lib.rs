@@ -62,6 +62,7 @@ pub mod types;
 
 // Re-export main types for convenience
 pub use account::{abstraction, Account};
+#[cfg(feature = "rpc-client")]
 pub use client::Client;
 pub use error::{MobError, Result};
 pub use signer::Signer;
@@ -70,7 +71,8 @@ pub use types::{
     AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, TxResponse,
 };
 
-// UniFFI setup
+// UniFFI setup - only when uniffi-bindings feature is enabled
+#[cfg(feature = "uniffi-bindings")]
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]

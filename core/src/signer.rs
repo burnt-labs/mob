@@ -10,7 +10,7 @@ use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
 /// A signer that manages keys and can sign transactions
-#[derive(uniffi::Object)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct Signer {
     signing_key: Vec<u8>, // Store as bytes instead of SigningKey (not Clone)
     address: AccountId,
@@ -18,10 +18,10 @@ pub struct Signer {
     address_prefix: String,
 }
 
-#[uniffi::export]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
 impl Signer {
     /// Create a new signer from a mnemonic phrase
-    #[uniffi::constructor]
+    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
     pub fn from_mnemonic(
         mnemonic: String,
         address_prefix: String,
