@@ -1,0 +1,68 @@
+name: Kotlin Client
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - 'kotlin/**'
+      - '.github/workflows/kotlin.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - 'kotlin/**'
+      - '.github/workflows/kotlin.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ['11', '17', '21']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          core/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+    - name: Install uniffi-bindgen
+      run: cargo install --bin uniffi-bindgen --path core
+
+    - name: Build Kotlin library
+      working-directory: kotlin
+      run: |
+        cargo build --release --manifest-path ../core/Cargo.toml
+        uniffi-bindgen generate ../core/src/mob.udl --language kotlin --out-dir lib/src/main/kotlin
+
+    - name: Grant execute permission for gradlew
+      working-directory: kotlin
+      run: chmod +x gradlew
+
+    - name: Run tests
+      working-directory: kotlin
+      run: ./gradlew test --tests "com.burnt.mob.SignerTest"
