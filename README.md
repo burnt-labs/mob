@@ -264,6 +264,20 @@ let signed_tx = builder.sign(&signer, account_number, sequence)?;
 - Rust 1.70+ (stable)
 - Cargo
 
+### Setup Git Hooks
+
+After cloning the repository, set up the git hooks to ensure code quality:
+
+```bash
+./scripts/setup-git-hooks.sh
+```
+
+This installs a pre-commit hook that will:
+- Check Rust code formatting with `cargo fmt`
+- Run clippy lints with `cargo clippy`
+
+The commit will be blocked if either check fails.
+
 ### Building
 
 ```bash
