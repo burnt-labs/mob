@@ -5,8 +5,8 @@ use crate::{
 };
 use cosmrs::{
     tendermint::chain::Id as ChainId,
-    tx::{self, AccountNumber, Body, BodyBuilder, Fee as CosmosFee, Msg, SequenceNumber, SignDoc},
-    Any, Gas,
+    tx::{self, Body, BodyBuilder, Fee as CosmosFee, Msg, SignDoc},
+    Any,
 };
 use std::str::FromStr;
 

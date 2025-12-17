@@ -237,7 +237,7 @@ impl Client {
             .map_err(|e| MobError::Address(format!("Invalid address: {}", e)))?;
 
         // Query account info using ABCI query
-        let query_path = format!("/cosmos.auth.v1beta1.Query/Account");
+        let query_path = "/cosmos.auth.v1beta1.Query/Account".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountRequest {
@@ -295,7 +295,7 @@ impl Client {
     /// Query account balance (internal)
     pub async fn get_balance_internal(&self, address: &str, denom: &str) -> Result<Coin> {
         // Query balance using ABCI query
-        let query_path = format!("/cosmos.bank.v1beta1.Query/Balance");
+        let query_path = "/cosmos.bank.v1beta1.Query/Balance".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceRequest {
@@ -344,7 +344,7 @@ impl Client {
     /// Query all balances for an address (internal)
     async fn get_all_balances_internal(&self, address: &str) -> Result<Vec<Coin>> {
         // Query all balances using ABCI query
-        let query_path = format!("/cosmos.bank.v1beta1.Query/AllBalances");
+        let query_path = "/cosmos.bank.v1beta1.Query/AllBalances".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesRequest {

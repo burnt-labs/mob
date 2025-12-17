@@ -2,7 +2,7 @@ use crate::error::{MobError, Result};
 use bip32::{DerivationPath, Mnemonic, XPrv};
 use cosmrs::{
     crypto::secp256k1::SigningKey,
-    tx::{self, AccountNumber, SignDoc, SignerInfo},
+    tx::{self, SignDoc},
     AccountId,
 };
 use k256::ecdsa::{signature::hazmat::PrehashSigner, Signature, SigningKey as K256SigningKey};

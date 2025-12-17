@@ -220,10 +220,8 @@ fn test_signer_sign_bytes() {
 
 #[test]
 fn test_multiple_coins() {
-    let coins = vec![
-        Coin::new("uxion", "1000000"),
-        Coin::new("uatom", "500000"),
-    ];
+    let coins = [Coin::new("uxion", "1000000"),
+        Coin::new("uatom", "500000")];
 
     assert_eq!(coins.len(), 2);
     assert_eq!(coins[0].denom, "uxion");

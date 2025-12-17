@@ -172,7 +172,7 @@ pub mod abstraction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Account, AccountInfo, abstraction::*};
+    use super::{Account, AccountInfo};
 
     #[test]
     fn test_account_creation() {
