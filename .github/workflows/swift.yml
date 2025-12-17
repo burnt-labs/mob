@@ -13,9 +13,14 @@ on:
       - 'core/**'
       - 'swift/**'
       - '.github/workflows/swift.yml'
+  workflow_run:
+    workflows: ["Core Library"]
+    types:
+      - completed
 
 jobs:
   test:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: macos-latest
     strategy:
       matrix:

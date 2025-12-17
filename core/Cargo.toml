@@ -21,7 +21,7 @@ path = "../uniffi-bindgen.rs"
 [features]
 default = ["rpc-client", "uniffi-bindings"]
 # RPC client with tokio runtime - for native FFI (Python, Ruby, Kotlin, Swift)
-rpc-client = ["tokio", "cosmrs/rpc", "tendermint-rpc"]
+rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc", "tonic"]
 # UniFFI bindings - for Python, Ruby, Kotlin, Swift
 uniffi-bindings = ["uniffi", "uniffi?/tokio"]
 # WASM-compatible - no tokio, no RPC client, no UniFFI (cryptography only)
@@ -32,7 +32,7 @@ wasm = []
 uniffi = { version = "0.30", features = ["cli"], optional = true }
 
 # Cosmos SDK - always needed for types
-cosmos-sdk-proto = { package = "xion-cosmos-sdk-proto", version = "0.26.1", default-features = false, features = ["std", "cosmwasm", "xion", "serde"] }
+cosmos-sdk-proto = { package = "xion-cosmos-sdk-proto", version = "0.26.1", default-features = false, features = ["std", "cosmwasm", "xion", "serde", "grpc"] }
 # cosmrs - make rpc and grpc optional
 cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
 tendermint = "0.37"
@@ -41,6 +41,9 @@ tendermint-rpc = { version = "0.37", features = ["http-client"], optional = true
 
 # Async runtime - optional for WASM
 tokio = { version = "1", features = ["full"], optional = true }
+
+# gRPC - optional for WASM
+tonic = { version = "0.12", optional = true }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

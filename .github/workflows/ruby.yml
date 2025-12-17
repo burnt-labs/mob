@@ -13,9 +13,14 @@ on:
       - 'core/**'
       - 'ruby/**'
       - '.github/workflows/ruby.yml'
+  workflow_run:
+    workflows: ["Core Library"]
+    types:
+      - completed
 
 jobs:
   test:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

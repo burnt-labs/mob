@@ -104,9 +104,6 @@ impl TransactionBuilder {
             MobError::Transaction("Transaction fee not set".to_string())
         })?;
 
-        // Convert our Fee type to cosmrs Fee
-        let cosmos_fee = self.convert_fee(fee)?;
-
         // Create auth info
         let auth_info = self.create_auth_info(signer, fee, sequence)?;
 
@@ -261,10 +258,56 @@ pub mod response {
 }
 
 /// Simulate a transaction to estimate gas
-pub fn simulate_transaction(tx_bytes: &[u8]) -> Result<u64> {
-    // This is a placeholder - actual implementation would require
-    // gRPC connection to simulate the transaction
-    // For now, return a default gas estimate
+/// Only available with "rpc-client" feature (default)
+#[cfg(feature = "rpc-client")]
+pub async fn simulate_transaction(
+    grpc_endpoint: &str,
+    tx_bytes: Vec<u8>,
+) -> Result<u64> {
+    use cosmos_sdk_proto::cosmos::tx::v1beta1::{
+        service_client::ServiceClient, SimulateRequest, TxRaw,
+    };
+    use prost::Message;
+    use tonic::transport::Channel;
+
+    // Parse tx_bytes into TxRaw proto (unused but validates the input)
+    let _tx_raw = TxRaw::decode(tx_bytes.as_slice())
+        .map_err(|e| MobError::Transaction(format!("Failed to decode transaction: {}", e)))?;
+
+    let request = SimulateRequest {
+        tx_bytes: tx_bytes.clone(),
+        ..Default::default()
+    };
+
+    // Connect to gRPC endpoint
+    let channel = Channel::from_shared(grpc_endpoint.to_string())
+        .map_err(|e| MobError::Network(format!("Invalid gRPC endpoint: {}", e)))?
+        .connect()
+        .await
+        .map_err(|e| MobError::Network(format!("Failed to connect to gRPC: {}", e)))?;
+
+    let mut client = ServiceClient::new(channel);
+
+    // Simulate the transaction
+    let response = client
+        .simulate(request)
+        .await
+        .map_err(|e| MobError::Transaction(format!("Simulation failed: {}", e)))?;
+
+    let gas_info = response
+        .into_inner()
+        .gas_info
+        .ok_or_else(|| MobError::Transaction("No gas info in simulation response".to_string()))?;
+
+    Ok(gas_info.gas_used)
+}
+
+/// Simulate a transaction to estimate gas (WASM-compatible stub)
+/// Returns a conservative default estimate when RPC client is not available
+#[cfg(not(feature = "rpc-client"))]
+pub fn simulate_transaction(_grpc_endpoint: &str, _tx_bytes: Vec<u8>) -> Result<u64> {
+    // Conservative default gas estimate for WASM environments
+    // gRPC simulation is not available without the rpc-client feature
     Ok(200_000)
 }
 

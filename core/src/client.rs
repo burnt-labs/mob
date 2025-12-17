@@ -614,8 +614,8 @@ impl Client {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_client_creation() {
+    #[test]
+    fn test_client_creation() {
         let config = ChainConfig::new(
             "xion-testnet-1",
             "https://rpc.xion-testnet-1.burnt.com:443",
@@ -623,7 +623,7 @@ mod tests {
         );
 
         // This will fail without a real RPC endpoint, but tests the structure
-        let _result = Client::new(config).await;
+        let _result = Client::new(config);
     }
 
     #[test]
