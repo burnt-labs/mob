@@ -505,7 +505,7 @@ impl Client {
 
                 Ok(TxResponse {
                     txhash: result.hash.to_string(),
-                    code: result.code.value() as u32,
+                    code: result.code.value(),
                     raw_log: result.log.to_string(),
                     gas_wanted: 0,
                     gas_used: 0,
@@ -541,7 +541,7 @@ impl Client {
 
                 Ok(TxResponse {
                     txhash: result.hash.to_string(),
-                    code: result.check_tx.code.value() as u32,
+                    code: result.check_tx.code.value(),
                     raw_log: result.check_tx.log.to_string(),
                     gas_wanted: result.check_tx.gas_wanted as u64,
                     gas_used: result.check_tx.gas_used as u64,
