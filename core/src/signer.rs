@@ -64,7 +64,8 @@ impl Signer {
 
         // Default to Cosmos derivation path: m/44'/118'/0'/0/0
         let path = derivation_path.unwrap_or("m/44'/118'/0'/0/0");
-        let derivation_path: DerivationPath = path.parse()
+        let derivation_path: DerivationPath = path
+            .parse()
             .map_err(|e| MobError::KeyDerivation(format!("Invalid derivation path: {}", e)))?;
 
         // Derive the private key
@@ -113,7 +114,8 @@ impl Signer {
         let hash = Sha256::digest(message);
 
         // Sign the hash directly (prehashed signature)
-        let signature: Signature = k256_key.sign_prehash(&hash)
+        let signature: Signature = k256_key
+            .sign_prehash(&hash)
             .map_err(|e| MobError::Signing(format!("Failed to sign prehash: {}", e)))?;
 
         // Normalize signature to low-S form (required by Cosmos SDK)
@@ -123,11 +125,7 @@ impl Signer {
     }
 
     /// Sign a transaction SignDoc
-    pub fn sign_direct(
-        &self,
-        sign_doc: &SignDoc,
-        account_number: u64,
-    ) -> Result<tx::Raw> {
+    pub fn sign_direct(&self, sign_doc: &SignDoc, account_number: u64) -> Result<tx::Raw> {
         use prost::Message;
 
         // Encode SignDoc to protobuf bytes
@@ -138,7 +136,8 @@ impl Signer {
             chain_id: sign_doc.chain_id.to_string(),
             account_number,
         };
-        sign_doc_proto.encode(&mut sign_doc_bytes)
+        sign_doc_proto
+            .encode(&mut sign_doc_bytes)
             .map_err(|e| MobError::Signing(format!("Failed to encode SignDoc: {}", e)))?;
 
         // Sign the bytes
@@ -153,7 +152,8 @@ impl Signer {
 
         // Encode and decode back to cosmrs Raw type
         let mut tx_raw_bytes = Vec::new();
-        tx_raw_proto.encode(&mut tx_raw_bytes)
+        tx_raw_proto
+            .encode(&mut tx_raw_bytes)
             .map_err(|e| MobError::Transaction(format!("Failed to encode tx: {}", e)))?;
 
         let tx_raw = tx::Raw::from_bytes(&tx_raw_bytes)
@@ -228,15 +228,26 @@ mod tests {
 
     #[test]
     fn test_invalid_mnemonic() {
-        let result = Signer::from_mnemonic("invalid mnemonic".to_string(), "xion".to_string(), None);
+        let result =
+            Signer::from_mnemonic("invalid mnemonic".to_string(), "xion".to_string(), None);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_custom_derivation_path() {
         let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
-        let signer1 = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), Some("m/44'/118'/0'/0/0".to_string())).unwrap();
-        let signer2 = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), Some("m/44'/118'/0'/0/1".to_string())).unwrap();
+        let signer1 = Signer::from_mnemonic(
+            mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/0".to_string()),
+        )
+        .unwrap();
+        let signer2 = Signer::from_mnemonic(
+            mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .unwrap();
 
         assert_ne!(signer1.address(), signer2.address());
     }

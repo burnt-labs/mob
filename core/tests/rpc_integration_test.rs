@@ -15,9 +15,7 @@ fn test_rpc_endpoint_get_height() {
     let client = Client::new(config).expect("Failed to create client");
 
     // Query the latest block height
-    let height = client
-        .get_height()
-        .expect("Failed to get block height");
+    let height = client.get_height().expect("Failed to get block height");
 
     // Verify we got a valid height (should be > 0)
     assert!(height > 0, "Block height should be greater than 0");
@@ -35,9 +33,7 @@ fn test_rpc_endpoint_is_synced() {
     let client = Client::new(config).expect("Failed to create client");
 
     // Check if the node is synced
-    let is_synced = client
-        .is_synced()
-        .expect("Failed to check sync status");
+    let is_synced = client.is_synced().expect("Failed to check sync status");
 
     println!("✅ Node sync status: {}", is_synced);
     // We don't assert true here because the node might be catching up
@@ -69,7 +65,10 @@ fn test_rpc_endpoint_get_account() {
         }
         Err(e) => {
             // Account might not exist or be invalid, that's okay for this test
-            println!("⚠️  Account query returned error (expected for non-existent account): {}", e);
+            println!(
+                "⚠️  Account query returned error (expected for non-existent account): {}",
+                e
+            );
         }
     }
 }
@@ -92,7 +91,10 @@ fn test_rpc_endpoint_get_balance() {
 
     match result {
         Ok(balance) => {
-            println!("✅ Successfully queried balance: {} {}", balance.amount, balance.denom);
+            println!(
+                "✅ Successfully queried balance: {} {}",
+                balance.amount, balance.denom
+            );
         }
         Err(e) => {
             println!("⚠️  Balance query returned error: {}", e);
@@ -117,17 +119,13 @@ fn test_rpc_endpoint_full_workflow() {
 
     // Step 2: Get chain height
     println!("\n2️⃣  Querying latest block height...");
-    let height = client
-        .get_height()
-        .expect("Failed to get block height");
+    let height = client.get_height().expect("Failed to get block height");
     println!("   ✅ Block height: {}", height);
     assert!(height > 0);
 
     // Step 3: Check sync status
     println!("\n3️⃣  Checking node sync status...");
-    let is_synced = client
-        .is_synced()
-        .expect("Failed to check sync status");
+    let is_synced = client.is_synced().expect("Failed to check sync status");
     println!("   ✅ Node synced: {}", is_synced);
 
     // Step 4: Verify chain config
@@ -176,7 +174,10 @@ fn test_chain_config_builder() {
     .with_coin_type(118);
 
     assert_eq!(config.chain_id, "xion-testnet-2");
-    assert_eq!(config.rpc_endpoint, "https://rpc.xion-testnet-2.burnt.com:443");
+    assert_eq!(
+        config.rpc_endpoint,
+        "https://rpc.xion-testnet-2.burnt.com:443"
+    );
     assert_eq!(config.address_prefix, "xion");
     assert_eq!(config.gas_price, "0.025");
     assert_eq!(config.coin_type, 118);
@@ -187,7 +188,7 @@ fn test_chain_config_builder() {
 #[test]
 #[ignore] // Ignored by default due to network calls and requiring funded account
 fn test_send_funds_to_address() {
-    use mob::{Signer, Coin};
+    use mob::{Coin, Signer};
     use std::sync::Arc;
 
     println!("\n💸 Testing fund transfer on XION testnet...\n");
@@ -223,7 +224,9 @@ fn test_send_funds_to_address() {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create runtime");
 
     println!("\n3️⃣  Attaching signer to client...");
-    runtime.block_on(client.attach_signer_internal(Arc::new(signer))).expect("Failed to attach signer");
+    runtime
+        .block_on(client.attach_signer_internal(Arc::new(signer)))
+        .expect("Failed to attach signer");
     println!("   ✅ Signer attached");
 
     println!("\n4️⃣  Querying sender balance...");
@@ -254,7 +257,11 @@ fn test_send_funds_to_address() {
 
     println!("\n6️⃣  Broadcasting transaction...");
     let tx_response = client
-        .send(recipient.to_string(), amount, Some("Test fund transfer".to_string()))
+        .send(
+            recipient.to_string(),
+            amount,
+            Some("Test fund transfer".to_string()),
+        )
         .expect("Failed to send transaction");
 
     println!("   ✅ Transaction broadcast successful!");

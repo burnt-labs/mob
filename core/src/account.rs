@@ -2,10 +2,7 @@ use crate::{
     error::{MobError, Result},
     types::AccountInfo,
 };
-use cosmrs::{
-    proto::cosmos::auth::v1beta1::BaseAccount,
-    AccountId,
-};
+use cosmrs::{proto::cosmos::auth::v1beta1::BaseAccount, AccountId};
 use std::str::FromStr;
 
 /// Account manager for querying and managing account information
