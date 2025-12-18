@@ -56,6 +56,8 @@
 pub mod account;
 pub mod client;
 pub mod error;
+pub mod session;
+pub mod session_signer;
 pub mod signer;
 pub mod transaction;
 pub mod types;
@@ -65,6 +67,8 @@ pub use account::{abstraction, Account};
 #[cfg(feature = "rpc-client")]
 pub use client::Client;
 pub use error::{MobError, Result};
+pub use session::SessionMetadata;
+pub use session_signer::SessionSigner;
 pub use signer::Signer;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{

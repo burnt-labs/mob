@@ -53,6 +53,10 @@ pub enum MobError {
     #[error("Timeout: {0}")]
     Timeout(String),
 
+    /// Session expired errors
+    #[error("Session expired: {0}")]
+    SessionExpired(String),
+
     /// Generic error
     #[error("Error: {0}")]
     Generic(String),
