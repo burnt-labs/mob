@@ -1,3 +1,4 @@
+# Swift Package Manager
 .DS_Store
 /.build
 /Packages
@@ -7,3 +8,12 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 *.xcodeproj
+
+# Generated bindings and libraries
+lib/libmob.dylib
+lib/*.so
+lib/*.dll
+lib/mob.swift
+lib/mobFFI.h
+lib/mobFFI.modulemap
+lib/*.xcframework

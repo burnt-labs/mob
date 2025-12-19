@@ -1,0 +1,18 @@
+# Generated bindings and libraries
+lib/mob.rb
+lib/libmob.dylib
+lib/*.so
+lib/*.dll
+
+# Ruby
+*.gem
+.bundle/
+vendor/
+Gemfile.lock
+
+# Testing
+.rspec
+spec/reports/
+
+# OS
+.DS_Store
