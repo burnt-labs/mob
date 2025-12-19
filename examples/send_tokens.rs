@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Client, Coin, Signer};
+use mob::{ChainConfig, Client, Coin, RustSigner};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mnemonic = std::env::var("MNEMONIC")
         .expect("MNEMONIC environment variable not set");
 
-    let signer = Signer::from_mnemonic(&mnemonic, "xion", None)?;
+    let signer = RustSigner::from_mnemonic(&mnemonic, "xion", None)?;
     println!("Sender address: {}\n", signer.address());
 
     // Create and configure client

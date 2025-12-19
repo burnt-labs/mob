@@ -88,6 +88,7 @@ impl From<serde_json::Error> for MobError {
     }
 }
 
+#[cfg(feature = "rust-signer")]
 impl From<bip32::Error> for MobError {
     fn from(err: bip32::Error) -> Self {
         MobError::KeyDerivation(err.to_string())

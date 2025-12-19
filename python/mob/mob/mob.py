@@ -480,9 +480,9 @@ def _uniffi_check_contract_api_version(lib):
 def _uniffi_check_api_checksums(lib):
     if lib.uniffi_mob_checksum_constructor_client_new() != 24379:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_constructor_client_new_with_signer() != 15565:
+    if lib.uniffi_mob_checksum_constructor_client_new_with_signer() != 5481:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_method_client_attach_signer() != 52997:
+    if lib.uniffi_mob_checksum_method_client_attach_signer() != 61507:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_mob_checksum_method_client_execute_contract() != 63353:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
@@ -502,15 +502,39 @@ def _uniffi_check_api_checksums(lib):
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_mob_checksum_method_client_send() != 9214:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_constructor_signer_from_mnemonic() != 23747:
+    if lib.uniffi_mob_checksum_method_cryptosigner_address() != 26285:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_method_signer_address() != 11665:
+    if lib.uniffi_mob_checksum_method_cryptosigner_public_key() != 63498:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_method_signer_address_prefix() != 17461:
+    if lib.uniffi_mob_checksum_method_cryptosigner_address_prefix() != 58975:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_method_signer_public_key_hex() != 30197:
+    if lib.uniffi_mob_checksum_method_cryptosigner_sign_bytes() != 63030:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_mob_checksum_method_signer_sign_bytes() != 10133:
+    if lib.uniffi_mob_checksum_constructor_rustsigner_from_mnemonic() != 21154:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_rustsigner_address() != 52484:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_rustsigner_address_prefix() != 57581:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_rustsigner_public_key_hex() != 48526:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_rustsigner_sign_bytes() != 42215:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_constructor_sessionsigner_from_private_key() != 47125:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_constructor_sessionsigner_new() != 51254:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_grantee_address() != 6606:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_granter_address() != 22973:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_is_expired() != 51098:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_metadata() != 28392:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_public_key_hex() != 18161:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_mob_checksum_method_sessionsigner_remaining_seconds() != 37589:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
 
 # A ctypes library to expose the extern-C FFI definitions.
@@ -785,16 +809,65 @@ _UniffiLib.uniffi_mob_fn_free_client.argtypes = (
     ctypes.POINTER(_UniffiRustCallStatus),
 )
 _UniffiLib.uniffi_mob_fn_free_client.restype = None
-_UniffiLib.uniffi_mob_fn_clone_signer.argtypes = (
+_UniffiLib.uniffi_mob_fn_clone_cryptosigner.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_clone_signer.restype = ctypes.c_uint64
-_UniffiLib.uniffi_mob_fn_free_signer.argtypes = (
+_UniffiLib.uniffi_mob_fn_clone_cryptosigner.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_free_cryptosigner.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_free_signer.restype = None
+_UniffiLib.uniffi_mob_fn_free_cryptosigner.restype = None
+_UniffiLib.uniffi_mob_fn_clone_rustsigner.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_clone_rustsigner.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_free_rustsigner.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_free_rustsigner.restype = None
+_UniffiLib.uniffi_mob_fn_clone_sessionsigner.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_clone_sessionsigner.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_free_sessionsigner.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_free_sessionsigner.restype = None
+_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD0 = ctypes.CFUNCTYPE(None,ctypes.c_uint64,ctypes.POINTER(_UniffiRustBuffer),
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD1 = ctypes.CFUNCTYPE(None,ctypes.c_uint64,ctypes.POINTER(_UniffiRustBuffer),
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD2 = ctypes.CFUNCTYPE(None,ctypes.c_uint64,ctypes.POINTER(_UniffiRustBuffer),
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD3 = ctypes.CFUNCTYPE(None,ctypes.c_uint64,_UniffiRustBuffer,ctypes.POINTER(_UniffiRustBuffer),
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UNIFFI_CALLBACK_INTERFACE_CLONE_MOB_CRYPTO_SIGNER = ctypes.CFUNCTYPE(ctypes.c_uint64,ctypes.c_uint64,
+)
+_UNIFFI_CALLBACK_INTERFACE_FREE_MOB_CRYPTO_SIGNER = ctypes.CFUNCTYPE(None,ctypes.c_uint64,
+)
+class _UniffiVTableCallbackInterfaceMobCryptoSigner(ctypes.Structure):
+    _fields_ = [
+        ("uniffi_free", _UNIFFI_CALLBACK_INTERFACE_FREE_MOB_CRYPTO_SIGNER),
+        ("uniffi_clone", _UNIFFI_CALLBACK_INTERFACE_CLONE_MOB_CRYPTO_SIGNER),
+        ("address", _UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD0),
+        ("public_key", _UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD1),
+        ("address_prefix", _UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD2),
+        ("sign_bytes", _UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD3),
+    ]
+_UniffiLib.uniffi_mob_fn_init_callback_vtable_cryptosigner.argtypes = (
+    ctypes.POINTER(_UniffiVTableCallbackInterfaceMobCryptoSigner),
+)
+_UniffiLib.uniffi_mob_fn_init_callback_vtable_cryptosigner.restype = None
 _UniffiLib.uniffi_mob_fn_constructor_client_new.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -869,34 +942,99 @@ _UniffiLib.uniffi_mob_fn_method_client_send.argtypes = (
     ctypes.POINTER(_UniffiRustCallStatus),
 )
 _UniffiLib.uniffi_mob_fn_method_client_send.restype = _UniffiRustBuffer
-_UniffiLib.uniffi_mob_fn_constructor_signer_from_mnemonic.argtypes = (
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_address.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_address.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_public_key.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_public_key.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_address_prefix.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_address_prefix.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_sign_bytes.argtypes = (
+    ctypes.c_uint64,
+    _UniffiRustBuffer,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_cryptosigner_sign_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_constructor_rustsigner_from_mnemonic.argtypes = (
     _UniffiRustBuffer,
     _UniffiRustBuffer,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_constructor_signer_from_mnemonic.restype = ctypes.c_uint64
-_UniffiLib.uniffi_mob_fn_method_signer_address.argtypes = (
+_UniffiLib.uniffi_mob_fn_constructor_rustsigner_from_mnemonic.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_method_rustsigner_address.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_method_signer_address.restype = _UniffiRustBuffer
-_UniffiLib.uniffi_mob_fn_method_signer_address_prefix.argtypes = (
+_UniffiLib.uniffi_mob_fn_method_rustsigner_address.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_rustsigner_address_prefix.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_method_signer_address_prefix.restype = _UniffiRustBuffer
-_UniffiLib.uniffi_mob_fn_method_signer_public_key_hex.argtypes = (
+_UniffiLib.uniffi_mob_fn_method_rustsigner_address_prefix.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_rustsigner_public_key_hex.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_method_signer_public_key_hex.restype = _UniffiRustBuffer
-_UniffiLib.uniffi_mob_fn_method_signer_sign_bytes.argtypes = (
+_UniffiLib.uniffi_mob_fn_method_rustsigner_public_key_hex.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_rustsigner_sign_bytes.argtypes = (
     ctypes.c_uint64,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_mob_fn_method_signer_sign_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_rustsigner_sign_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_constructor_sessionsigner_from_private_key.argtypes = (
+    _UniffiRustBuffer,
+    _UniffiRustBuffer,
+    _UniffiRustBuffer,
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_constructor_sessionsigner_from_private_key.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_constructor_sessionsigner_new.argtypes = (
+    ctypes.c_uint64,
+    _UniffiRustBuffer,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_constructor_sessionsigner_new.restype = ctypes.c_uint64
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_grantee_address.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_grantee_address.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_granter_address.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_granter_address.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_is_expired.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_is_expired.restype = ctypes.c_int8
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_metadata.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_metadata.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_public_key_hex.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_public_key_hex.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_remaining_seconds.argtypes = (
+    ctypes.c_uint64,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_mob_fn_method_sessionsigner_remaining_seconds.restype = ctypes.c_uint64
 _UniffiLib.ffi_mob_uniffi_contract_version.argtypes = (
 )
 _UniffiLib.ffi_mob_uniffi_contract_version.restype = ctypes.c_uint32
@@ -936,21 +1074,57 @@ _UniffiLib.uniffi_mob_checksum_method_client_is_synced.restype = ctypes.c_uint16
 _UniffiLib.uniffi_mob_checksum_method_client_send.argtypes = (
 )
 _UniffiLib.uniffi_mob_checksum_method_client_send.restype = ctypes.c_uint16
-_UniffiLib.uniffi_mob_checksum_constructor_signer_from_mnemonic.argtypes = (
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_address.argtypes = (
 )
-_UniffiLib.uniffi_mob_checksum_constructor_signer_from_mnemonic.restype = ctypes.c_uint16
-_UniffiLib.uniffi_mob_checksum_method_signer_address.argtypes = (
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_address.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_public_key.argtypes = (
 )
-_UniffiLib.uniffi_mob_checksum_method_signer_address.restype = ctypes.c_uint16
-_UniffiLib.uniffi_mob_checksum_method_signer_address_prefix.argtypes = (
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_public_key.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_address_prefix.argtypes = (
 )
-_UniffiLib.uniffi_mob_checksum_method_signer_address_prefix.restype = ctypes.c_uint16
-_UniffiLib.uniffi_mob_checksum_method_signer_public_key_hex.argtypes = (
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_address_prefix.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_sign_bytes.argtypes = (
 )
-_UniffiLib.uniffi_mob_checksum_method_signer_public_key_hex.restype = ctypes.c_uint16
-_UniffiLib.uniffi_mob_checksum_method_signer_sign_bytes.argtypes = (
+_UniffiLib.uniffi_mob_checksum_method_cryptosigner_sign_bytes.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_constructor_rustsigner_from_mnemonic.argtypes = (
 )
-_UniffiLib.uniffi_mob_checksum_method_signer_sign_bytes.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_constructor_rustsigner_from_mnemonic.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_address.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_address.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_address_prefix.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_address_prefix.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_public_key_hex.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_public_key_hex.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_sign_bytes.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_rustsigner_sign_bytes.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_constructor_sessionsigner_from_private_key.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_constructor_sessionsigner_from_private_key.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_constructor_sessionsigner_new.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_constructor_sessionsigner_new.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_grantee_address.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_grantee_address.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_granter_address.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_granter_address.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_is_expired.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_is_expired.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_metadata.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_metadata.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_public_key_hex.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_public_key_hex.restype = ctypes.c_uint16
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_remaining_seconds.argtypes = (
+)
+_UniffiLib.uniffi_mob_checksum_method_sessionsigner_remaining_seconds.restype = ctypes.c_uint16
 
 _uniffi_check_contract_api_version(_UniffiLib)
 # _uniffi_check_api_checksums(_UniffiLib)
@@ -1270,6 +1444,63 @@ class _UniffiFfiConverterTypeFee(_UniffiConverterRustBuffer):
         _UniffiFfiConverterOptionalString.write(value.payer, buf)
         _UniffiFfiConverterOptionalString.write(value.granter, buf)
 
+@dataclass
+class SessionMetadata:
+    """
+    Session key metadata
+"""
+    def __init__(self, *, granter:str, grantee:str, created_at:int, expires_at:int, description:typing.Optional[str]):
+        self.granter = granter
+        self.grantee = grantee
+        self.created_at = created_at
+        self.expires_at = expires_at
+        self.description = description
+        
+        
+
+    
+    def __str__(self):
+        return "SessionMetadata(granter={}, grantee={}, created_at={}, expires_at={}, description={})".format(self.granter, self.grantee, self.created_at, self.expires_at, self.description)
+    def __eq__(self, other):
+        if self.granter != other.granter:
+            return False
+        if self.grantee != other.grantee:
+            return False
+        if self.created_at != other.created_at:
+            return False
+        if self.expires_at != other.expires_at:
+            return False
+        if self.description != other.description:
+            return False
+        return True
+
+class _UniffiFfiConverterTypeSessionMetadata(_UniffiConverterRustBuffer):
+    @staticmethod
+    def read(buf):
+        return SessionMetadata(
+            granter=_UniffiFfiConverterString.read(buf),
+            grantee=_UniffiFfiConverterString.read(buf),
+            created_at=_UniffiFfiConverterUInt64.read(buf),
+            expires_at=_UniffiFfiConverterUInt64.read(buf),
+            description=_UniffiFfiConverterOptionalString.read(buf),
+        )
+
+    @staticmethod
+    def check_lower(value):
+        _UniffiFfiConverterString.check_lower(value.granter)
+        _UniffiFfiConverterString.check_lower(value.grantee)
+        _UniffiFfiConverterUInt64.check_lower(value.created_at)
+        _UniffiFfiConverterUInt64.check_lower(value.expires_at)
+        _UniffiFfiConverterOptionalString.check_lower(value.description)
+
+    @staticmethod
+    def write(value, buf):
+        _UniffiFfiConverterString.write(value.granter, buf)
+        _UniffiFfiConverterString.write(value.grantee, buf)
+        _UniffiFfiConverterUInt64.write(value.created_at, buf)
+        _UniffiFfiConverterUInt64.write(value.expires_at, buf)
+        _UniffiFfiConverterOptionalString.write(value.description, buf)
+
 class _UniffiFfiConverterInt64(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "i64"
     VALUE_MIN = -2**63
@@ -1511,6 +1742,13 @@ class MobError:  # type: ignore
         def __repr__(self):
             return "MobError.Timeout({})".format(repr(str(self)))
     _UniffiTempMobError.Timeout = Timeout # type: ignore
+    class SessionExpired(_UniffiTempMobError):
+        """
+        Session expired errors
+"""
+        def __repr__(self):
+            return "MobError.SessionExpired({})".format(repr(str(self)))
+    _UniffiTempMobError.SessionExpired = SessionExpired # type: ignore
     class Generic(_UniffiTempMobError):
         """
         Generic error
@@ -1576,6 +1814,10 @@ class _UniffiFfiConverterTypeMobError(_UniffiConverterRustBuffer):
                 _UniffiFfiConverterString.read(buf),
             )
         if variant == 13:
+            return MobError.SessionExpired(
+                _UniffiFfiConverterString.read(buf),
+            )
+        if variant == 14:
             return MobError.Generic(
                 _UniffiFfiConverterString.read(buf),
             )
@@ -1607,6 +1849,8 @@ class _UniffiFfiConverterTypeMobError(_UniffiConverterRustBuffer):
             return
         if isinstance(value, MobError.Timeout):
             return
+        if isinstance(value, MobError.SessionExpired):
+            return
         if isinstance(value, MobError.Generic):
             return
 
@@ -1636,8 +1880,93 @@ class _UniffiFfiConverterTypeMobError(_UniffiConverterRustBuffer):
             buf.write_i32(11)
         if isinstance(value, MobError.Timeout):
             buf.write_i32(12)
-        if isinstance(value, MobError.Generic):
+        if isinstance(value, MobError.SessionExpired):
             buf.write_i32(13)
+        if isinstance(value, MobError.Generic):
+            buf.write_i32(14)
+
+
+
+# SignerError
+# We want to define each variant as a nested class that's also a subclass,
+# which is tricky in Python.  To accomplish this we're going to create each
+# class separately, then manually add the child classes to the base class's
+# __dict__.  All of this happens in dummy class to avoid polluting the module
+# namespace.
+class SignerError(Exception):
+    """
+    Error types for signer operations that cross FFI boundary
+"""
+    pass
+
+_UniffiTempSignerError = SignerError
+
+class SignerError:  # type: ignore
+    """
+    Error types for signer operations that cross FFI boundary
+"""
+    
+    class SigningFailed(_UniffiTempSignerError):
+        """
+        Failed to sign data
+"""
+        def __repr__(self):
+            return "SignerError.SigningFailed({})".format(repr(str(self)))
+    _UniffiTempSignerError.SigningFailed = SigningFailed # type: ignore
+    class InvalidKey(_UniffiTempSignerError):
+        """
+        Invalid key format or data
+"""
+        def __repr__(self):
+            return "SignerError.InvalidKey({})".format(repr(str(self)))
+    _UniffiTempSignerError.InvalidKey = InvalidKey # type: ignore
+    class InvalidSignature(_UniffiTempSignerError):
+        """
+        Invalid signature format
+"""
+        def __repr__(self):
+            return "SignerError.InvalidSignature({})".format(repr(str(self)))
+    _UniffiTempSignerError.InvalidSignature = InvalidSignature # type: ignore
+
+SignerError = _UniffiTempSignerError # type: ignore
+del _UniffiTempSignerError
+
+
+class _UniffiFfiConverterTypeSignerError(_UniffiConverterRustBuffer):
+    @staticmethod
+    def read(buf):
+        variant = buf.read_i32()
+        if variant == 1:
+            return SignerError.SigningFailed(
+                _UniffiFfiConverterString.read(buf),
+            )
+        if variant == 2:
+            return SignerError.InvalidKey(
+                _UniffiFfiConverterString.read(buf),
+            )
+        if variant == 3:
+            return SignerError.InvalidSignature(
+                _UniffiFfiConverterString.read(buf),
+            )
+        raise InternalError("Raw enum value doesn't match any cases")
+
+    @staticmethod
+    def check_lower(value):
+        if isinstance(value, SignerError.SigningFailed):
+            return
+        if isinstance(value, SignerError.InvalidKey):
+            return
+        if isinstance(value, SignerError.InvalidSignature):
+            return
+
+    @staticmethod
+    def write(value, buf):
+        if isinstance(value, SignerError.SigningFailed):
+            buf.write_i32(1)
+        if isinstance(value, SignerError.InvalidKey):
+            buf.write_i32(2)
+        if isinstance(value, SignerError.InvalidSignature):
+            buf.write_i32(3)
 
 class _UniffiFfiConverterBytes(_UniffiConverterRustBuffer):
     @staticmethod
@@ -1660,9 +1989,12 @@ class _UniffiFfiConverterBytes(_UniffiConverterRustBuffer):
         buf.write(value)
 
 
-class SignerProtocol(typing.Protocol):
+class RustSignerProtocol(typing.Protocol):
     """
-    A signer that manages keys and can sign transactions
+    Pure Rust implementation of the CryptoSigner trait
+
+    This signer uses Rust's k256 and bip32 libraries for all cryptographic operations.
+    It implements BIP39 mnemonic support and BIP32 hierarchical deterministic key derivation.
 """
     
     def address(self, ) -> str:
@@ -1686,14 +2018,17 @@ class SignerProtocol(typing.Protocol):
 """
         raise NotImplementedError
 
-class Signer(SignerProtocol):
+class RustSigner(RustSignerProtocol):
     """
-    A signer that manages keys and can sign transactions
+    Pure Rust implementation of the CryptoSigner trait
+
+    This signer uses Rust's k256 and bip32 libraries for all cryptographic operations.
+    It implements BIP39 mnemonic support and BIP32 hierarchical deterministic key derivation.
 """
     
     _handle: ctypes.c_uint64
     @classmethod
-    def from_mnemonic(cls, mnemonic: str,address_prefix: str,derivation_path: typing.Optional[str]) -> Signer:
+    def from_mnemonic(cls, mnemonic: str,address_prefix: str,derivation_path: typing.Optional[str]) -> RustSigner:
         """
         Create a new signer from a mnemonic phrase
 """
@@ -1708,11 +2043,11 @@ class Signer(SignerProtocol):
             _UniffiFfiConverterString.lower(address_prefix),
             _UniffiFfiConverterOptionalString.lower(derivation_path),
         )
-        _uniffi_lift_return = _UniffiFfiConverterTypeSigner.lift
+        _uniffi_lift_return = _UniffiFfiConverterTypeRustSigner.lift
         _uniffi_error_converter = _UniffiFfiConverterTypeMobError
         _uniffi_ffi_result = _uniffi_rust_call_with_error(
             _uniffi_error_converter,
-            _UniffiLib.uniffi_mob_fn_constructor_signer_from_mnemonic,
+            _UniffiLib.uniffi_mob_fn_constructor_rustsigner_from_mnemonic,
             *_uniffi_lowered_args,
         )
         return cls._uniffi_make_instance(_uniffi_ffi_result)
@@ -1724,10 +2059,10 @@ class Signer(SignerProtocol):
         # In case of partial initialization of instances.
         handle = getattr(self, "_handle", None)
         if handle is not None:
-            _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_free_signer, handle)
+            _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_free_rustsigner, handle)
 
     def _uniffi_clone_handle(self):
-        return _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_clone_signer, self._handle)
+        return _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_clone_rustsigner, self._handle)
 
     # Used by alternative constructors or any methods which return this type.
     @classmethod
@@ -1748,7 +2083,7 @@ class Signer(SignerProtocol):
         _uniffi_error_converter = None
         _uniffi_ffi_result = _uniffi_rust_call_with_error(
             _uniffi_error_converter,
-            _UniffiLib.uniffi_mob_fn_method_signer_address,
+            _UniffiLib.uniffi_mob_fn_method_rustsigner_address,
             *_uniffi_lowered_args,
         )
         return _uniffi_lift_return(_uniffi_ffi_result)
@@ -1763,7 +2098,7 @@ class Signer(SignerProtocol):
         _uniffi_error_converter = None
         _uniffi_ffi_result = _uniffi_rust_call_with_error(
             _uniffi_error_converter,
-            _UniffiLib.uniffi_mob_fn_method_signer_address_prefix,
+            _UniffiLib.uniffi_mob_fn_method_rustsigner_address_prefix,
             *_uniffi_lowered_args,
         )
         return _uniffi_lift_return(_uniffi_ffi_result)
@@ -1778,7 +2113,7 @@ class Signer(SignerProtocol):
         _uniffi_error_converter = None
         _uniffi_ffi_result = _uniffi_rust_call_with_error(
             _uniffi_error_converter,
-            _UniffiLib.uniffi_mob_fn_method_signer_public_key_hex,
+            _UniffiLib.uniffi_mob_fn_method_rustsigner_public_key_hex,
             *_uniffi_lowered_args,
         )
         return _uniffi_lift_return(_uniffi_ffi_result)
@@ -1796,7 +2131,7 @@ class Signer(SignerProtocol):
         _uniffi_error_converter = _UniffiFfiConverterTypeMobError
         _uniffi_ffi_result = _uniffi_rust_call_with_error(
             _uniffi_error_converter,
-            _UniffiLib.uniffi_mob_fn_method_signer_sign_bytes,
+            _UniffiLib.uniffi_mob_fn_method_rustsigner_sign_bytes,
             *_uniffi_lowered_args,
         )
         return _uniffi_lift_return(_uniffi_ffi_result)
@@ -1805,29 +2140,29 @@ class Signer(SignerProtocol):
 
 
 
-class _UniffiFfiConverterTypeSigner:
+class _UniffiFfiConverterTypeRustSigner:
     @staticmethod
-    def lift(value: int) -> Signer:
-        return Signer._uniffi_make_instance(value)
+    def lift(value: int) -> RustSigner:
+        return RustSigner._uniffi_make_instance(value)
 
     @staticmethod
-    def check_lower(value: Signer):
-        if not isinstance(value, Signer):
-            raise TypeError("Expected Signer instance, {} found".format(type(value).__name__))
+    def check_lower(value: RustSigner):
+        if not isinstance(value, RustSigner):
+            raise TypeError("Expected RustSigner instance, {} found".format(type(value).__name__))
 
     @staticmethod
-    def lower(value: Signer) -> ctypes.c_uint64:
+    def lower(value: RustSigner) -> ctypes.c_uint64:
         return value._uniffi_clone_handle()
 
     @classmethod
-    def read(cls, buf: _UniffiRustBuffer) -> Signer:
+    def read(cls, buf: _UniffiRustBuffer) -> RustSigner:
         ptr = buf.read_u64()
         if ptr == 0:
             raise InternalError("Raw handle value was null")
         return cls.lift(ptr)
 
     @classmethod
-    def write(cls, value: Signer, buf: _UniffiRustBuffer):
+    def write(cls, value: RustSigner, buf: _UniffiRustBuffer):
         buf.write_u64(cls.lower(value))
 
 class _UniffiFfiConverterBoolean:
@@ -1855,11 +2190,14 @@ class _UniffiFfiConverterBoolean:
 class ClientProtocol(typing.Protocol):
     """
     RPC client for interacting with the blockchain
+    Only available with "rpc-client" feature (default)
 """
     
-    def attach_signer(self, signer: Signer) -> None:
+    def attach_signer(self, signer: RustSigner) -> None:
         """
         Attach a signer to the client
+
+        Note: This method is only available with the `rust-signer` feature.
 """
         raise NotImplementedError
     def execute_contract(self, contract_address: str,msg: bytes,funds: typing.List[Coin],memo: typing.Optional[str]) -> TxResponse:
@@ -1911,6 +2249,7 @@ class ClientProtocol(typing.Protocol):
 class Client(ClientProtocol):
     """
     RPC client for interacting with the blockchain
+    Only available with "rpc-client" feature (default)
 """
     
     _handle: ctypes.c_uint64
@@ -1932,17 +2271,19 @@ class Client(ClientProtocol):
         )
         self._handle = _uniffi_ffi_result
     @classmethod
-    def new_with_signer(cls, config: ChainConfig,signer: Signer) -> Client:
+    def new_with_signer(cls, config: ChainConfig,signer: RustSigner) -> Client:
         """
         Create a new RPC client with a signer attached (synchronous wrapper for FFI)
+
+        Note: This constructor is only available with the `rust-signer` feature.
 """
         
         _UniffiFfiConverterTypeChainConfig.check_lower(config)
         
-        _UniffiFfiConverterTypeSigner.check_lower(signer)
+        _UniffiFfiConverterTypeRustSigner.check_lower(signer)
         _uniffi_lowered_args = (
             _UniffiFfiConverterTypeChainConfig.lower(config),
-            _UniffiFfiConverterTypeSigner.lower(signer),
+            _UniffiFfiConverterTypeRustSigner.lower(signer),
         )
         _uniffi_lift_return = _UniffiFfiConverterTypeClient.lift
         _uniffi_error_converter = _UniffiFfiConverterTypeMobError
@@ -1970,15 +2311,17 @@ class Client(ClientProtocol):
         inst = cls.__new__(cls)
         inst._handle = handle
         return inst
-    def attach_signer(self, signer: Signer) -> None:
+    def attach_signer(self, signer: RustSigner) -> None:
         """
         Attach a signer to the client
+
+        Note: This method is only available with the `rust-signer` feature.
 """
         
-        _UniffiFfiConverterTypeSigner.check_lower(signer)
+        _UniffiFfiConverterTypeRustSigner.check_lower(signer)
         _uniffi_lowered_args = (
             self._uniffi_clone_handle(),
-            _UniffiFfiConverterTypeSigner.lower(signer),
+            _UniffiFfiConverterTypeRustSigner.lower(signer),
         )
         _uniffi_lift_return = lambda val: None
         _uniffi_error_converter = _UniffiFfiConverterTypeMobError
@@ -2189,6 +2532,644 @@ class _UniffiFfiConverterTypeClient:
     def write(cls, value: Client, buf: _UniffiRustBuffer):
         buf.write_u64(cls.lower(value))
 
+
+class CryptoSigner():
+    """
+    Trait for cryptographic signing operations
+
+    This trait defines the core signing interface that can be implemented
+    in Rust or in foreign languages (Python, Swift, Kotlin, etc.) to provide
+    custom cryptographic implementations.
+
+    # Requirements
+
+    Implementations MUST:
+    - Return compressed secp256k1 public keys (33 bytes, format: 0x02/0x03 + 32-byte X coordinate)
+    - Sign SHA256 prehashed messages
+    - Return normalized secp256k1 signatures (64 bytes, r||s in big-endian, low-S form)
+    - Be thread-safe (Send + Sync)
+
+    # Example
+
+    ```rust,no_run
+    use mob::{CryptoSigner, SignerError};
+    use std::sync::Arc;
+
+    struct MyCryptoSigner {
+    address: String,
+    pub_key: Vec<u8>,
+    prefix: String,
+    }
+
+    impl CryptoSigner for MyCryptoSigner {
+    fn address(&self) -> String {
+    self.address.clone()
+    }
+
+    fn public_key(&self) -> Vec<u8> {
+    self.pub_key.clone()
+    }
+
+    fn address_prefix(&self) -> String {
+    self.prefix.clone()
+    }
+
+    fn sign_bytes(&self, message: Vec<u8>) -> std::result::Result<Vec<u8>, SignerError> {
+    // Custom signing implementation
+    Ok(vec![0u8; 64]) // Return 64-byte signature
+    }
+    }
+    ```
+"""
+    
+    def address(self, ) -> str:
+        """
+        Get the signer's bech32 address
+
+        Returns the address string (e.g., "xion1abc...")
+"""
+        raise NotImplementedError
+    def public_key(self, ) -> bytes:
+        """
+        Get the signer's compressed secp256k1 public key
+
+        Returns 33 bytes in compressed format:
+        - First byte: 0x02 (even Y) or 0x03 (odd Y)
+        - Remaining 32 bytes: X coordinate
+"""
+        raise NotImplementedError
+    def address_prefix(self, ) -> str:
+        """
+        Get the address prefix
+
+        Returns the bech32 prefix (e.g., "xion")
+"""
+        raise NotImplementedError
+    def sign_bytes(self, message: bytes) -> bytes:
+        """
+        Sign arbitrary bytes with secp256k1 ECDSA
+
+        # Parameters
+        - `message`: The message bytes to sign
+
+        # Returns
+        64-byte signature in format: r (32 bytes) || s (32 bytes)
+        - r and s are big-endian encoded
+        - Signature MUST be normalized to low-S form (s <= curve_order / 2)
+
+        # Implementation Notes
+        1. Hash the message with SHA256
+        2. Sign the hash with secp256k1 ECDSA
+        3. Normalize the signature to low-S form
+        4. Return r||s as 64 bytes
+"""
+        raise NotImplementedError
+
+class CryptoSignerImpl(CryptoSigner):
+    """
+    Trait for cryptographic signing operations
+
+    This trait defines the core signing interface that can be implemented
+    in Rust or in foreign languages (Python, Swift, Kotlin, etc.) to provide
+    custom cryptographic implementations.
+
+    # Requirements
+
+    Implementations MUST:
+    - Return compressed secp256k1 public keys (33 bytes, format: 0x02/0x03 + 32-byte X coordinate)
+    - Sign SHA256 prehashed messages
+    - Return normalized secp256k1 signatures (64 bytes, r||s in big-endian, low-S form)
+    - Be thread-safe (Send + Sync)
+
+    # Example
+
+    ```rust,no_run
+    use mob::{CryptoSigner, SignerError};
+    use std::sync::Arc;
+
+    struct MyCryptoSigner {
+    address: String,
+    pub_key: Vec<u8>,
+    prefix: String,
+    }
+
+    impl CryptoSigner for MyCryptoSigner {
+    fn address(&self) -> String {
+    self.address.clone()
+    }
+
+    fn public_key(&self) -> Vec<u8> {
+    self.pub_key.clone()
+    }
+
+    fn address_prefix(&self) -> String {
+    self.prefix.clone()
+    }
+
+    fn sign_bytes(&self, message: Vec<u8>) -> std::result::Result<Vec<u8>, SignerError> {
+    // Custom signing implementation
+    Ok(vec![0u8; 64]) // Return 64-byte signature
+    }
+    }
+    ```
+"""
+    
+    _handle: ctypes.c_uint64
+    
+    def __init__(self, *args, **kwargs):
+        raise ValueError("This class has no default constructor")
+
+    def __del__(self):
+        # In case of partial initialization of instances.
+        handle = getattr(self, "_handle", None)
+        if handle is not None:
+            _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_free_cryptosigner, handle)
+
+    def _uniffi_clone_handle(self):
+        return _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_clone_cryptosigner, self._handle)
+
+    # Used by alternative constructors or any methods which return this type.
+    @classmethod
+    def _uniffi_make_instance(cls, handle):
+        # Lightly yucky way to bypass the usual __init__ logic
+        # and just create a new instance with the required handle.
+        inst = cls.__new__(cls)
+        inst._handle = handle
+        return inst
+    def address(self, ) -> str:
+        """
+        Get the signer's bech32 address
+
+        Returns the address string (e.g., "xion1abc...")
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterString.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_cryptosigner_address,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def public_key(self, ) -> bytes:
+        """
+        Get the signer's compressed secp256k1 public key
+
+        Returns 33 bytes in compressed format:
+        - First byte: 0x02 (even Y) or 0x03 (odd Y)
+        - Remaining 32 bytes: X coordinate
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterBytes.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_cryptosigner_public_key,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def address_prefix(self, ) -> str:
+        """
+        Get the address prefix
+
+        Returns the bech32 prefix (e.g., "xion")
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterString.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_cryptosigner_address_prefix,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def sign_bytes(self, message: bytes) -> bytes:
+        """
+        Sign arbitrary bytes with secp256k1 ECDSA
+
+        # Parameters
+        - `message`: The message bytes to sign
+
+        # Returns
+        64-byte signature in format: r (32 bytes) || s (32 bytes)
+        - r and s are big-endian encoded
+        - Signature MUST be normalized to low-S form (s <= curve_order / 2)
+
+        # Implementation Notes
+        1. Hash the message with SHA256
+        2. Sign the hash with secp256k1 ECDSA
+        3. Normalize the signature to low-S form
+        4. Return r||s as 64 bytes
+"""
+        
+        _UniffiFfiConverterBytes.check_lower(message)
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+            _UniffiFfiConverterBytes.lower(message),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterBytes.lift
+        _uniffi_error_converter = _UniffiFfiConverterTypeSignerError
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_cryptosigner_sign_bytes,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+
+
+
+
+# Put all the bits inside a class to keep the top-level namespace clean
+class _UniffiTraitImplCryptoSignerImpl:
+    # For each method, generate a callback function to pass to Rust
+
+    @_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD0
+    def address(
+            uniffi_handle,
+            uniffi_out_return,
+            uniffi_call_status_ptr,
+        ):
+        uniffi_obj = _UniffiFfiConverterTypeCryptoSigner._handle_map.get(uniffi_handle)
+        def make_call():
+            uniffi_args = ()
+            uniffi_method = uniffi_obj.address
+            return uniffi_method(*uniffi_args)
+        def write_return_value(v):
+            uniffi_out_return[0] = _UniffiFfiConverterString.lower(v)
+        _uniffi_trait_interface_call(
+                uniffi_call_status_ptr.contents,
+                make_call,
+                write_return_value,
+        )
+
+    @_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD1
+    def public_key(
+            uniffi_handle,
+            uniffi_out_return,
+            uniffi_call_status_ptr,
+        ):
+        uniffi_obj = _UniffiFfiConverterTypeCryptoSigner._handle_map.get(uniffi_handle)
+        def make_call():
+            uniffi_args = ()
+            uniffi_method = uniffi_obj.public_key
+            return uniffi_method(*uniffi_args)
+        def write_return_value(v):
+            uniffi_out_return[0] = _UniffiFfiConverterBytes.lower(v)
+        _uniffi_trait_interface_call(
+                uniffi_call_status_ptr.contents,
+                make_call,
+                write_return_value,
+        )
+
+    @_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD2
+    def address_prefix(
+            uniffi_handle,
+            uniffi_out_return,
+            uniffi_call_status_ptr,
+        ):
+        uniffi_obj = _UniffiFfiConverterTypeCryptoSigner._handle_map.get(uniffi_handle)
+        def make_call():
+            uniffi_args = ()
+            uniffi_method = uniffi_obj.address_prefix
+            return uniffi_method(*uniffi_args)
+        def write_return_value(v):
+            uniffi_out_return[0] = _UniffiFfiConverterString.lower(v)
+        _uniffi_trait_interface_call(
+                uniffi_call_status_ptr.contents,
+                make_call,
+                write_return_value,
+        )
+
+    @_UNIFFI_CALLBACK_INTERFACE_MOB_CRYPTO_SIGNER_METHOD3
+    def sign_bytes(
+            uniffi_handle,
+            message,
+            uniffi_out_return,
+            uniffi_call_status_ptr,
+        ):
+        uniffi_obj = _UniffiFfiConverterTypeCryptoSigner._handle_map.get(uniffi_handle)
+        def make_call():
+            uniffi_args = (_UniffiFfiConverterBytes.lift(message), )
+            uniffi_method = uniffi_obj.sign_bytes
+            return uniffi_method(*uniffi_args)
+        def write_return_value(v):
+            uniffi_out_return[0] = _UniffiFfiConverterBytes.lower(v)
+        _uniffi_trait_interface_call_with_error(
+                uniffi_call_status_ptr.contents,
+                make_call,
+                write_return_value,
+                SignerError,
+                _UniffiFfiConverterTypeSignerError.lower,
+        )
+
+    @_UNIFFI_CALLBACK_INTERFACE_FREE_MOB_CRYPTO_SIGNER
+    def _uniffi_free(uniffi_handle):
+        _UniffiFfiConverterTypeCryptoSigner._handle_map.remove(uniffi_handle)
+
+    @_UNIFFI_CALLBACK_INTERFACE_CLONE_MOB_CRYPTO_SIGNER
+    def _uniffi_clone(uniffi_handle):
+        return _UniffiFfiConverterTypeCryptoSigner._handle_map.clone(uniffi_handle)
+
+    # Generate the FFI VTable.  This has a field for each callback interface method.
+    _uniffi_vtable = _UniffiVTableCallbackInterfaceMobCryptoSigner(
+        _uniffi_free,
+        _uniffi_clone,
+        address,
+        public_key,
+        address_prefix,
+        sign_bytes,
+    )
+    # Send Rust a pointer to the VTable.  Note: this means we need to keep the struct alive forever,
+    # or else bad things will happen when Rust tries to access it.
+    _UniffiLib.uniffi_mob_fn_init_callback_vtable_cryptosigner(ctypes.byref(_uniffi_vtable))
+
+class _UniffiFfiConverterTypeCryptoSigner:
+    _handle_map = _UniffiHandleMap()
+
+    @staticmethod
+    def lift(value: int):
+        if (value & 1) == 0:
+            # Rust-generated handle, construct a new class that uses the handle to implement the
+            # interface
+            return CryptoSignerImpl._uniffi_make_instance(value)
+        else:
+            # Python-generated handle, get the object from the handle map
+            return _UniffiFfiConverterTypeCryptoSigner._handle_map.remove(value)
+
+    @staticmethod
+    def check_lower(value: CryptoSigner):
+        if not isinstance(value, CryptoSigner):
+            raise TypeError("Expected CryptoSigner subclass, {} found".format(type(value).__name__))
+
+    @staticmethod
+    def lower(value: CryptoSigner):
+         if isinstance(value, CryptoSignerImpl):
+            # Rust-implementated object.  Clone the handle and return it
+            return value._uniffi_clone_handle()
+         else:
+            # Python-implementated object, generate a new vtable handle and return that.
+            return _UniffiFfiConverterTypeCryptoSigner._handle_map.insert(value)
+
+    @classmethod
+    def read(cls, buf: _UniffiRustBuffer):
+        ptr = buf.read_u64()
+        if ptr == 0:
+            raise InternalError("Raw handle value was null")
+        return cls.lift(ptr)
+
+    @classmethod
+    def write(cls, value: CryptoSigner, buf: _UniffiRustBuffer):
+        buf.write_u64(cls.lower(value))
+
+
+class SessionSignerProtocol(typing.Protocol):
+    """
+    A session signer that wraps messages in MsgExec (Authz) for session key usage
+
+    This works with any implementation of CryptoSigner, allowing language-specific
+    cryptographic implementations while automatically wrapping all messages in authz.
+"""
+    
+    def grantee_address(self, ) -> str:
+        """
+        Get the grantee address (the session key address)
+"""
+        raise NotImplementedError
+    def granter_address(self, ) -> str:
+        """
+        Get the granter address (the main account)
+"""
+        raise NotImplementedError
+    def is_expired(self, ) -> bool:
+        """
+        Check if session is expired
+"""
+        raise NotImplementedError
+    def metadata(self, ) -> SessionMetadata:
+        """
+        Get session metadata
+"""
+        raise NotImplementedError
+    def public_key_hex(self, ) -> str:
+        """
+        Get the session key's public key as hex
+"""
+        raise NotImplementedError
+    def remaining_seconds(self, ) -> int:
+        """
+        Get remaining session time in seconds
+"""
+        raise NotImplementedError
+
+class SessionSigner(SessionSignerProtocol):
+    """
+    A session signer that wraps messages in MsgExec (Authz) for session key usage
+
+    This works with any implementation of CryptoSigner, allowing language-specific
+    cryptographic implementations while automatically wrapping all messages in authz.
+"""
+    
+    _handle: ctypes.c_uint64
+    @classmethod
+    def from_private_key(cls, private_key: bytes,address_prefix: str,granter_address: str,duration_seconds: int) -> SessionSigner:
+        """
+        Create a session signer from a private key with duration
+
+        Note: This constructor is only available with the `rust-signer` feature.
+"""
+        
+        _UniffiFfiConverterBytes.check_lower(private_key)
+        
+        _UniffiFfiConverterString.check_lower(address_prefix)
+        
+        _UniffiFfiConverterString.check_lower(granter_address)
+        
+        _UniffiFfiConverterUInt64.check_lower(duration_seconds)
+        _uniffi_lowered_args = (
+            _UniffiFfiConverterBytes.lower(private_key),
+            _UniffiFfiConverterString.lower(address_prefix),
+            _UniffiFfiConverterString.lower(granter_address),
+            _UniffiFfiConverterUInt64.lower(duration_seconds),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterTypeSessionSigner.lift
+        _uniffi_error_converter = _UniffiFfiConverterTypeMobError
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_constructor_sessionsigner_from_private_key,
+            *_uniffi_lowered_args,
+        )
+        return cls._uniffi_make_instance(_uniffi_ffi_result)
+    def __init__(self, session_key: RustSigner,metadata: SessionMetadata):
+        """
+        Create a new session signer from a RustSigner and metadata
+
+        # Parameters
+        - `session_key`: RustSigner instance
+        - `metadata`: Session metadata with expiration and granter info
+
+        Note: This constructor is only available with the `rust-signer` feature for FFI.
+        Rust code can use `with_signer()` to accept any CryptoSigner implementation.
+"""
+        
+        _UniffiFfiConverterTypeRustSigner.check_lower(session_key)
+        
+        _UniffiFfiConverterTypeSessionMetadata.check_lower(metadata)
+        _uniffi_lowered_args = (
+            _UniffiFfiConverterTypeRustSigner.lower(session_key),
+            _UniffiFfiConverterTypeSessionMetadata.lower(metadata),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterTypeSessionSigner.lift
+        _uniffi_error_converter = _UniffiFfiConverterTypeMobError
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_constructor_sessionsigner_new,
+            *_uniffi_lowered_args,
+        )
+        self._handle = _uniffi_ffi_result
+
+    def __del__(self):
+        # In case of partial initialization of instances.
+        handle = getattr(self, "_handle", None)
+        if handle is not None:
+            _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_free_sessionsigner, handle)
+
+    def _uniffi_clone_handle(self):
+        return _uniffi_rust_call(_UniffiLib.uniffi_mob_fn_clone_sessionsigner, self._handle)
+
+    # Used by alternative constructors or any methods which return this type.
+    @classmethod
+    def _uniffi_make_instance(cls, handle):
+        # Lightly yucky way to bypass the usual __init__ logic
+        # and just create a new instance with the required handle.
+        inst = cls.__new__(cls)
+        inst._handle = handle
+        return inst
+    def grantee_address(self, ) -> str:
+        """
+        Get the grantee address (the session key address)
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterString.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_grantee_address,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def granter_address(self, ) -> str:
+        """
+        Get the granter address (the main account)
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterString.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_granter_address,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def is_expired(self, ) -> bool:
+        """
+        Check if session is expired
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterBoolean.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_is_expired,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def metadata(self, ) -> SessionMetadata:
+        """
+        Get session metadata
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterTypeSessionMetadata.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_metadata,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def public_key_hex(self, ) -> str:
+        """
+        Get the session key's public key as hex
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterString.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_public_key_hex,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+    def remaining_seconds(self, ) -> int:
+        """
+        Get remaining session time in seconds
+"""
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterUInt64.lift
+        _uniffi_error_converter = None
+        _uniffi_ffi_result = _uniffi_rust_call_with_error(
+            _uniffi_error_converter,
+            _UniffiLib.uniffi_mob_fn_method_sessionsigner_remaining_seconds,
+            *_uniffi_lowered_args,
+        )
+        return _uniffi_lift_return(_uniffi_ffi_result)
+
+
+
+
+
+class _UniffiFfiConverterTypeSessionSigner:
+    @staticmethod
+    def lift(value: int) -> SessionSigner:
+        return SessionSigner._uniffi_make_instance(value)
+
+    @staticmethod
+    def check_lower(value: SessionSigner):
+        if not isinstance(value, SessionSigner):
+            raise TypeError("Expected SessionSigner instance, {} found".format(type(value).__name__))
+
+    @staticmethod
+    def lower(value: SessionSigner) -> ctypes.c_uint64:
+        return value._uniffi_clone_handle()
+
+    @classmethod
+    def read(cls, buf: _UniffiRustBuffer) -> SessionSigner:
+        ptr = buf.read_u64()
+        if ptr == 0:
+            raise InternalError("Raw handle value was null")
+        return cls.lift(ptr)
+
+    @classmethod
+    def write(cls, value: SessionSigner, buf: _UniffiRustBuffer):
+        buf.write_u64(cls.lower(value))
+
 class _UniffiFfiConverterUInt8(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "u8"
     VALUE_MIN = 0
@@ -2206,13 +3187,19 @@ __all__ = [
     "InternalError",
     "BroadcastMode",
     "MobError",
+    "SignerError",
     "AccountInfo",
     "ChainConfig",
     "Coin",
     "Fee",
+    "SessionMetadata",
     "TxResponse",
-    "Signer",
-    "SignerProtocol",
+    "RustSigner",
+    "RustSignerProtocol",
     "Client",
     "ClientProtocol",
+    "CryptoSignerImpl",
+    "CryptoSigner",
+    "SessionSigner",
+    "SessionSignerProtocol",
 ]

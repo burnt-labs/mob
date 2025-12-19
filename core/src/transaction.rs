@@ -1,6 +1,6 @@
 use crate::{
+    crypto_signer::CryptoSigner,
     error::{MobError, Result},
-    signer::Signer,
     types::{Coin, Fee},
 };
 use cosmrs::{
@@ -93,7 +93,12 @@ impl TransactionBuilder {
     }
 
     /// Build and sign the transaction
-    pub fn sign(&self, signer: &Signer, account_number: u64, sequence: u64) -> Result<Vec<u8>> {
+    pub fn sign(
+        &self,
+        signer: &dyn CryptoSigner,
+        account_number: u64,
+        sequence: u64,
+    ) -> Result<Vec<u8>> {
         let body = self.build_body()?;
 
         // Get fee or use default
@@ -108,15 +113,65 @@ impl TransactionBuilder {
         // Create SignDoc
         let sign_doc = SignDoc::new(&body, &auth_info, &self.chain_id, account_number)?;
 
-        // Sign the transaction
-        let tx_raw = signer.sign_direct(&sign_doc, account_number)?;
+        // Sign the transaction using the trait method
+        let tx_raw = self.sign_with_trait(signer, &sign_doc, account_number)?;
 
         // Serialize to bytes
         let tx_bytes = tx_raw.to_bytes()?;
         Ok(tx_bytes)
     }
 
-    fn create_auth_info(&self, signer: &Signer, fee: &Fee, sequence: u64) -> Result<tx::AuthInfo> {
+    /// Sign a transaction using only CryptoSigner trait methods
+    fn sign_with_trait(
+        &self,
+        signer: &dyn CryptoSigner,
+        sign_doc: &SignDoc,
+        account_number: u64,
+    ) -> Result<tx::Raw> {
+        use prost::Message;
+
+        // Encode SignDoc to protobuf bytes
+        let mut sign_doc_bytes = Vec::new();
+        let sign_doc_proto = cosmos_sdk_proto::cosmos::tx::v1beta1::SignDoc {
+            body_bytes: sign_doc.body_bytes.clone(),
+            auth_info_bytes: sign_doc.auth_info_bytes.clone(),
+            chain_id: sign_doc.chain_id.to_string(),
+            account_number,
+        };
+        sign_doc_proto
+            .encode(&mut sign_doc_bytes)
+            .map_err(|e| MobError::Signing(format!("Failed to encode SignDoc: {}", e)))?;
+
+        // Sign the bytes using the trait method
+        let signature = signer
+            .sign_bytes(sign_doc_bytes)
+            .map_err(|e| MobError::Signing(e.to_string()))?;
+
+        // Create raw transaction
+        let tx_raw_proto = cosmos_sdk_proto::cosmos::tx::v1beta1::TxRaw {
+            body_bytes: sign_doc.body_bytes.clone(),
+            auth_info_bytes: sign_doc.auth_info_bytes.clone(),
+            signatures: vec![signature],
+        };
+
+        // Encode and decode back to cosmrs Raw type
+        let mut tx_raw_bytes = Vec::new();
+        tx_raw_proto
+            .encode(&mut tx_raw_bytes)
+            .map_err(|e| MobError::Transaction(format!("Failed to encode tx: {}", e)))?;
+
+        let tx_raw = tx::Raw::from_bytes(&tx_raw_bytes)
+            .map_err(|e| MobError::Transaction(format!("Failed to create Raw tx: {}", e)))?;
+
+        Ok(tx_raw)
+    }
+
+    fn create_auth_info(
+        &self,
+        signer: &dyn CryptoSigner,
+        fee: &Fee,
+        sequence: u64,
+    ) -> Result<tx::AuthInfo> {
         let cosmos_fee = self.convert_fee(fee)?;
 
         // Create public key from bytes (33 bytes compressed format)

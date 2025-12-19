@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Client, Coin, Signer};
+use mob::{ChainConfig, Client, Coin, RustSigner};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Create a signer from mnemonic
     println!("2. Creating signer from mnemonic...");
     let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    let signer = Signer::from_mnemonic(mnemonic, "xion", None)?;
+    let signer = RustSigner::from_mnemonic(mnemonic, "xion", None)?;
 
     println!("   Address: {}", signer.address());
     println!("   Public Key: {}\n", signer.public_key_hex());
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Attach signer to client
     println!("4. Attaching signer to client...");
     client.attach_signer(signer).await?;
-    println!("   Signer attached successfully\n");
+    println!("   RustSigner attached successfully\n");
 
     // 5. Query account information
     println!("5. Querying account information...");

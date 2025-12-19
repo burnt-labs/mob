@@ -1,7 +1,9 @@
+#[cfg(feature = "rust-signer")]
+use crate::rust_signer::RustSigner;
 use crate::{
+    crypto_signer::CryptoSigner,
     error::{MobError, Result},
     session::SessionMetadata,
-    signer::Signer,
 };
 use cosmrs::{
     tendermint::chain::Id as ChainId,
@@ -11,49 +13,30 @@ use cosmrs::{
 use std::sync::Arc;
 
 /// A session signer that wraps messages in MsgExec (Authz) for session key usage
-#[derive(Debug)]
+///
+/// This works with any implementation of CryptoSigner, allowing language-specific
+/// cryptographic implementations while automatically wrapping all messages in authz.
 #[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct SessionSigner {
-    /// The underlying session key signer
-    session_key: Arc<Signer>,
+    /// The underlying session key signer (trait object for flexibility)
+    session_key: Arc<dyn CryptoSigner>,
     /// Session metadata including granter and expiration
     metadata: SessionMetadata,
 }
 
+// Manual Debug implementation since trait objects don't auto-derive Debug
+impl std::fmt::Debug for SessionSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionSigner")
+            .field("granter", &self.metadata.granter)
+            .field("grantee", &self.metadata.grantee)
+            .field("expires_at", &self.metadata.expires_at)
+            .finish()
+    }
+}
+
 #[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
 impl SessionSigner {
-    /// Create a new session signer from a session key signer and metadata
-    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
-    pub fn new(session_key: Arc<Signer>, metadata: SessionMetadata) -> Result<Self> {
-        // Validate session on creation
-        metadata.validate()?;
-
-        Ok(Self {
-            session_key,
-            metadata,
-        })
-    }
-
-    /// Create a session signer from a private key with duration
-    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
-    pub fn from_private_key(
-        private_key: Vec<u8>,
-        address_prefix: String,
-        granter_address: String,
-        duration_seconds: u64,
-    ) -> Result<Self> {
-        let signer = Signer::from_private_key(&private_key, &address_prefix)?;
-        let grantee_address = signer.address();
-
-        let metadata =
-            SessionMetadata::with_duration(granter_address, grantee_address, duration_seconds);
-
-        Ok(Self {
-            session_key: Arc::new(signer),
-            metadata,
-        })
-    }
-
     /// Get the granter address (the main account)
     pub fn granter_address(&self) -> String {
         self.metadata.granter.clone()
@@ -81,13 +64,78 @@ impl SessionSigner {
 
     /// Get the session key's public key as hex
     pub fn public_key_hex(&self) -> String {
-        self.session_key.public_key_hex()
+        hex::encode(self.session_key.public_key())
+    }
+}
+
+// RustSigner-specific FFI constructors (only with rust-signer feature)
+#[cfg(feature = "rust-signer")]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
+impl SessionSigner {
+    /// Create a new session signer from a RustSigner and metadata
+    ///
+    /// # Parameters
+    /// - `session_key`: RustSigner instance
+    /// - `metadata`: Session metadata with expiration and granter info
+    ///
+    /// Note: This constructor is only available with the `rust-signer` feature for FFI.
+    /// Rust code can use `with_signer()` to accept any CryptoSigner implementation.
+    #[uniffi::constructor]
+    pub fn new(session_key: Arc<RustSigner>, metadata: SessionMetadata) -> Result<Self> {
+        // Validate session on creation
+        metadata.validate()?;
+
+        Ok(Self {
+            session_key,
+            metadata,
+        })
+    }
+
+    /// Create a session signer from a private key with duration
+    ///
+    /// Note: This constructor is only available with the `rust-signer` feature.
+    #[uniffi::constructor]
+    pub fn from_private_key(
+        private_key: Vec<u8>,
+        address_prefix: String,
+        granter_address: String,
+        duration_seconds: u64,
+    ) -> Result<Self> {
+        let signer = RustSigner::from_private_key(&private_key, &address_prefix)?;
+        let grantee_address = signer.address();
+
+        let metadata =
+            SessionMetadata::with_duration(granter_address, grantee_address, duration_seconds);
+
+        Ok(Self {
+            session_key: Arc::new(signer),
+            metadata,
+        })
     }
 }
 
 impl SessionSigner {
+    /// Create a new session signer with any CryptoSigner implementation
+    ///
+    /// This is the primary constructor for Rust code when using custom signers.
+    /// For FFI usage with RustSigner, use the `new()` constructor instead.
+    ///
+    /// This method is not exported to FFI since UniFFI doesn't support trait objects.
+    pub fn with_signer(
+        session_key: Arc<dyn CryptoSigner>,
+        metadata: SessionMetadata,
+    ) -> Result<Self> {
+        // Validate session on creation
+        metadata.validate()?;
+
+        Ok(Self {
+            session_key,
+            metadata,
+        })
+    }
+
     /// Get reference to the underlying session key signer
-    pub fn session_key(&self) -> &Arc<Signer> {
+    pub fn session_key(&self) -> &Arc<dyn CryptoSigner> {
         &self.session_key
     }
 
@@ -150,11 +198,52 @@ impl SessionSigner {
         // Create SignDoc
         let sign_doc = SignDoc::new(&body, &auth_info, chain_id, account_number)?;
 
-        // Sign with session key
-        let tx_raw = self.session_key.sign_direct(&sign_doc, account_number)?;
+        // Sign with session key using only the CryptoSigner trait
+        let tx_raw = self.sign_with_trait(&sign_doc, account_number)?;
 
         // Serialize to bytes
         Ok(tx_raw.to_bytes()?)
+    }
+
+    /// Sign a SignDoc using only the CryptoSigner trait (works with any implementation)
+    fn sign_with_trait(&self, sign_doc: &SignDoc, account_number: u64) -> Result<tx::Raw> {
+        use prost::Message;
+
+        // Encode SignDoc to protobuf bytes
+        let mut sign_doc_bytes = Vec::new();
+        let sign_doc_proto = cosmos_sdk_proto::cosmos::tx::v1beta1::SignDoc {
+            body_bytes: sign_doc.body_bytes.clone(),
+            auth_info_bytes: sign_doc.auth_info_bytes.clone(),
+            chain_id: sign_doc.chain_id.to_string(),
+            account_number,
+        };
+        sign_doc_proto
+            .encode(&mut sign_doc_bytes)
+            .map_err(|e| MobError::Signing(format!("Failed to encode SignDoc: {}", e)))?;
+
+        // Sign the bytes using the CryptoSigner trait
+        let signature = self
+            .session_key
+            .sign_bytes(sign_doc_bytes)
+            .map_err(|e| MobError::Signing(e.to_string()))?;
+
+        // Create raw transaction using proto directly
+        let tx_raw_proto = cosmos_sdk_proto::cosmos::tx::v1beta1::TxRaw {
+            body_bytes: sign_doc.body_bytes.clone(),
+            auth_info_bytes: sign_doc.auth_info_bytes.clone(),
+            signatures: vec![signature],
+        };
+
+        // Encode and decode back to cosmrs Raw type
+        let mut tx_raw_bytes = Vec::new();
+        tx_raw_proto
+            .encode(&mut tx_raw_bytes)
+            .map_err(|e| MobError::Transaction(format!("Failed to encode tx: {}", e)))?;
+
+        let tx_raw = tx::Raw::from_bytes(&tx_raw_bytes)
+            .map_err(|e| MobError::Transaction(format!("Failed to create Raw tx: {}", e)))?;
+
+        Ok(tx_raw)
     }
 
     fn create_auth_info(&self, fee: &crate::types::Fee, sequence: u64) -> Result<tx::AuthInfo> {
@@ -205,7 +294,7 @@ mod tests {
     fn test_session_signer_creation() {
         // Create a test session key
         let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
-        let session_key = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
             .expect("Failed to create signer");
 
         let granter = "xion1granter".to_string();
@@ -238,7 +327,7 @@ mod tests {
     #[test]
     fn test_expired_session_validation() {
         let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
-        let session_key = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
             .expect("Failed to create signer");
 
         let granter = "xion1granter".to_string();
@@ -257,11 +346,11 @@ mod tests {
         // Create two different signers for granter and grantee
         let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
         let granter_signer =
-            Signer::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
                 .expect("Failed to create granter signer");
 
         let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-        let session_key = Signer::from_mnemonic(
+        let session_key = RustSigner::from_mnemonic(
             session_mnemonic.to_string(),
             "xion".to_string(),
             Some("m/44'/118'/0'/0/1".to_string()),
@@ -277,7 +366,7 @@ mod tests {
 
         // Create an actual MsgSend message using valid addresses
         let recipient_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-        let recipient_signer = Signer::from_mnemonic(
+        let recipient_signer = RustSigner::from_mnemonic(
             recipient_mnemonic.to_string(),
             "xion".to_string(),
             Some("m/44'/118'/0'/0/2".to_string()),
@@ -317,12 +406,12 @@ mod tests {
         // Create granter signer
         let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
         let granter_signer =
-            Signer::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
                 .expect("Failed to create granter signer");
 
         // Create session key signer
         let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-        let session_key = Signer::from_mnemonic(
+        let session_key = RustSigner::from_mnemonic(
             session_mnemonic.to_string(),
             "xion".to_string(),
             Some("m/44'/118'/0'/0/1".to_string()),
@@ -338,7 +427,7 @@ mod tests {
 
         // Create recipient signer
         let recipient_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-        let recipient_signer = Signer::from_mnemonic(
+        let recipient_signer = RustSigner::from_mnemonic(
             recipient_mnemonic.to_string(),
             "xion".to_string(),
             Some("m/44'/118'/0'/0/2".to_string()),
@@ -395,7 +484,7 @@ mod tests {
     #[test]
     fn test_expired_session_cannot_sign() {
         let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
-        let session_key = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
             .expect("Failed to create signer");
 
         let granter = "xion1granter000000000000000000000000000000".to_string();

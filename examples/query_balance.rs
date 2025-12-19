@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Client, Signer};
+use mob::{ChainConfig, Client, RustSigner};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Address to query (can be from environment or use a signer)
     let address = if let Ok(mnemonic) = std::env::var("MNEMONIC") {
-        let signer = Signer::from_mnemonic(&mnemonic, "xion", None)?;
+        let signer = RustSigner::from_mnemonic(&mnemonic, "xion", None)?;
         signer.address()
     } else {
         std::env::var("ADDRESS")

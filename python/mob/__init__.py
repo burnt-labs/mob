@@ -7,7 +7,7 @@ for the XION network.
 
 Example:
     >>> import mob
-    >>> signer = mob.Signer.from_mnemonic(
+    >>> signer = mob.RustSigner.from_mnemonic(
     ...     "your mnemonic phrase here",
     ...     "xion",
     ...     None
@@ -24,8 +24,10 @@ __version__ = "0.1.0"
 __author__ = "Burnt Labs"
 __all__ = [
     # Classes
-    "Signer",
+    "RustSigner",
     "Client",
+    "SessionSigner",
+    "CryptoSigner",
     # Types
     "Coin",
     "Fee",
@@ -35,4 +37,5 @@ __all__ = [
     "BroadcastMode",
     # Errors
     "MobError",
+    "SignerError",
 ]

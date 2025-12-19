@@ -19,11 +19,13 @@ name = "uniffi-bindgen"
 path = "../uniffi-bindgen.rs"
 
 [features]
-default = ["rpc-client", "uniffi-bindings"]
+default = ["rpc-client", "uniffi-bindings", "rust-signer"]
 # RPC client with tokio runtime - for native FFI (Python, Ruby, Kotlin, Swift)
 rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc", "tonic"]
 # UniFFI bindings - for Python, Ruby, Kotlin, Swift
 uniffi-bindings = ["uniffi", "uniffi?/tokio"]
+# Rust signer implementation - pure Rust cryptography with BIP32/BIP39 support
+rust-signer = ["bip32", "k256", "ripemd", "sha2"]
 # WASM-compatible - no tokio, no RPC client, no UniFFI (cryptography only)
 wasm = []
 
@@ -49,11 +51,11 @@ tonic = { version = "0.12", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Cryptography
-bip32 = "0.5"
-k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
-ripemd = "0.1"
-sha2 = "0.10"
+# Cryptography - optional, only for rust-signer feature
+bip32 = { version = "0.5", optional = true }
+k256 = { version = "0.13", features = ["ecdsa", "sha256"], optional = true }
+ripemd = { version = "0.1", optional = true }
+sha2 = { version = "0.10", optional = true }
 
 # Utilities
 hex = "0.4"

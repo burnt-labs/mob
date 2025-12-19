@@ -188,7 +188,7 @@ fn test_chain_config_builder() {
 #[test]
 #[ignore] // Ignored by default due to network calls and requiring funded account
 fn test_send_funds_to_address() {
-    use mob::{Coin, Signer};
+    use mob::{Coin, RustSigner};
     use std::sync::Arc;
 
     println!("\n💸 Testing fund transfer on XION testnet...\n");
@@ -200,7 +200,7 @@ fn test_send_funds_to_address() {
     let recipient = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4";
 
     println!("1️⃣  Creating signer from mnemonic...");
-    let signer = Signer::from_mnemonic(
+    let signer = RustSigner::from_mnemonic(
         mnemonic.to_string(),
         "xion".to_string(),
         None, // Use default derivation path

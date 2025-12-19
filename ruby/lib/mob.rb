@@ -214,6 +214,29 @@ end
     end
   end
 
+  # The Record type SessionMetadata.
+
+  def self.check_lower_TypeSessionMetadata(v)
+    
+    
+    
+    
+    RustBuffer.check_lower_Optionalstring(v.description)
+  end
+
+  def self.alloc_from_TypeSessionMetadata(v)
+    RustBuffer.allocWithBuilder do |builder|
+      builder.write_TypeSessionMetadata(v)
+      return builder.finalize
+    end
+  end
+
+  def consumeIntoTypeSessionMetadata
+    consumeWithStream do |stream|
+      return stream.readTypeSessionMetadata
+    end
+  end
+
   # The Record type TxResponse.
 
   def self.check_lower_TypeTxResponse(v)
@@ -255,6 +278,8 @@ end
       return stream.readTypeBroadcastMode
     end
   end
+  
+
   
 
   
@@ -391,11 +416,25 @@ class RustBufferStream
     return Client.uniffi_allocate(handle)
   end
 
-  # The Object type Signer.
+  # The Object type CryptoSigner.
 
-  def readTypeSigner
+  def readTypeCryptoSigner
     handle = unpack_from 8, 'Q>'
-    return Signer.uniffi_allocate(handle)
+    return CryptoSigner.uniffi_allocate(handle)
+  end
+
+  # The Object type RustSigner.
+
+  def readTypeRustSigner
+    handle = unpack_from 8, 'Q>'
+    return RustSigner.uniffi_allocate(handle)
+  end
+
+  # The Object type SessionSigner.
+
+  def readTypeSessionSigner
+    handle = unpack_from 8, 'Q>'
+    return SessionSigner.uniffi_allocate(handle)
   end
 
   # The Record type AccountInfo.
@@ -439,6 +478,18 @@ class RustBufferStream
       gas_limit: readU64,
       payer: readOptionalstring,
       granter: readOptionalstring
+    )
+  end
+
+  # The Record type SessionMetadata.
+
+  def readTypeSessionMetadata
+    SessionMetadata.new(
+      granter: readString,
+      grantee: readString,
+      created_at: readU64,
+      expires_at: readU64,
+      description: readOptionalstring
     )
   end
 
@@ -547,12 +598,46 @@ class RustBufferStream
       )
     end
     if variant == 13
+      return MobError::SessionExpired.new(
+        readString()
+      )
+    end
+    if variant == 14
       return MobError::Generic.new(
         readString()
       )
     end
 
     raise InternalError, 'Unexpected variant tag for TypeMobError'
+  end
+  
+
+  
+
+  
+
+  # The Error type SignerError
+
+  def readTypeSignerError
+    variant = unpack_from 4, 'l>'
+    
+    if variant == 1
+      return SignerError::SigningFailed.new(
+        readString()
+      )
+    end
+    if variant == 2
+      return SignerError::InvalidKey.new(
+        readString()
+      )
+    end
+    if variant == 3
+      return SignerError::InvalidSignature.new(
+        readString()
+      )
+    end
+
+    raise InternalError, 'Unexpected variant tag for TypeSignerError'
   end
   
 
@@ -670,10 +755,24 @@ class RustBufferBuilder
     pack_into(8, 'Q>', handle)
   end
 
-  # The Object type Signer.
+  # The Object type CryptoSigner.
 
-  def write_TypeSigner(obj)
-    handle = Signer.uniffi_lower obj
+  def write_TypeCryptoSigner(obj)
+    handle = CryptoSigner.uniffi_lower obj
+    pack_into(8, 'Q>', handle)
+  end
+
+  # The Object type RustSigner.
+
+  def write_TypeRustSigner(obj)
+    handle = RustSigner.uniffi_lower obj
+    pack_into(8, 'Q>', handle)
+  end
+
+  # The Object type SessionSigner.
+
+  def write_TypeSessionSigner(obj)
+    handle = SessionSigner.uniffi_lower obj
     pack_into(8, 'Q>', handle)
   end
 
@@ -713,6 +812,16 @@ class RustBufferBuilder
     self.write_Optionalstring(v.granter)
   end
 
+  # The Record type SessionMetadata.
+
+  def write_TypeSessionMetadata(v)
+    self.write_String(v.granter)
+    self.write_String(v.grantee)
+    self.write_U64(v.created_at)
+    self.write_U64(v.expires_at)
+    self.write_Optionalstring(v.description)
+  end
+
   # The Record type TxResponse.
 
   def write_TypeTxResponse(v)
@@ -730,6 +839,8 @@ class RustBufferBuilder
     pack_into(4, 'l>', v)
  end
    
+
+  
 
   
 
@@ -815,7 +926,17 @@ class MobError
     GasEstimation = Class.new StandardError
     InsufficientFunds = Class.new StandardError
     Timeout = Class.new StandardError
+    SessionExpired = Class.new StandardError
     Generic = Class.new StandardError
+
+end
+
+
+
+class SignerError
+    SigningFailed = Class.new StandardError
+    InvalidKey = Class.new StandardError
+    InvalidSignature = Class.new StandardError
 
 end
 
@@ -825,6 +946,9 @@ ERROR_MODULE_TO_READER_METHOD = {
 
 
   MobError => :readTypeMobError,
+
+
+  SignerError => :readTypeSignerError,
 
 }
 
@@ -892,7 +1016,7 @@ module UniFFILib
   extend FFI::Library
 
   
-  ffi_lib File.expand_path('libmob.dylib', __dir__)
+  ffi_lib File.join(__dir__, 'libmob.dylib')
   
 
   attach_function :uniffi_mob_fn_clone_client,
@@ -937,27 +1061,78 @@ module UniFFILib
   attach_function :uniffi_mob_fn_method_client_send,
     [:uint64, RustBuffer.by_value, RustBuffer.by_value, RustBuffer.by_value, RustCallStatus.by_ref],
     RustBuffer.by_value
-  attach_function :uniffi_mob_fn_clone_signer,
+  attach_function :uniffi_mob_fn_clone_cryptosigner,
     [:uint64, RustCallStatus.by_ref],
     :uint64
-  attach_function :uniffi_mob_fn_free_signer,
+  attach_function :uniffi_mob_fn_free_cryptosigner,
     [:uint64, RustCallStatus.by_ref],
     :void
-  attach_function :uniffi_mob_fn_constructor_signer_from_mnemonic,
-    [RustBuffer.by_value, RustBuffer.by_value, RustBuffer.by_value, RustCallStatus.by_ref],
-    :uint64
-  attach_function :uniffi_mob_fn_method_signer_address,
+  attach_function :uniffi_mob_fn_init_callback_vtable_cryptosigner,
+    [:pointer, RustCallStatus.by_ref],
+    :void
+  attach_function :uniffi_mob_fn_method_cryptosigner_address,
     [:uint64, RustCallStatus.by_ref],
     RustBuffer.by_value
-  attach_function :uniffi_mob_fn_method_signer_address_prefix,
+  attach_function :uniffi_mob_fn_method_cryptosigner_public_key,
     [:uint64, RustCallStatus.by_ref],
     RustBuffer.by_value
-  attach_function :uniffi_mob_fn_method_signer_public_key_hex,
+  attach_function :uniffi_mob_fn_method_cryptosigner_address_prefix,
     [:uint64, RustCallStatus.by_ref],
     RustBuffer.by_value
-  attach_function :uniffi_mob_fn_method_signer_sign_bytes,
+  attach_function :uniffi_mob_fn_method_cryptosigner_sign_bytes,
     [:uint64, RustBuffer.by_value, RustCallStatus.by_ref],
     RustBuffer.by_value
+  attach_function :uniffi_mob_fn_clone_rustsigner,
+    [:uint64, RustCallStatus.by_ref],
+    :uint64
+  attach_function :uniffi_mob_fn_free_rustsigner,
+    [:uint64, RustCallStatus.by_ref],
+    :void
+  attach_function :uniffi_mob_fn_constructor_rustsigner_from_mnemonic,
+    [RustBuffer.by_value, RustBuffer.by_value, RustBuffer.by_value, RustCallStatus.by_ref],
+    :uint64
+  attach_function :uniffi_mob_fn_method_rustsigner_address,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_rustsigner_address_prefix,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_rustsigner_public_key_hex,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_rustsigner_sign_bytes,
+    [:uint64, RustBuffer.by_value, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_clone_sessionsigner,
+    [:uint64, RustCallStatus.by_ref],
+    :uint64
+  attach_function :uniffi_mob_fn_free_sessionsigner,
+    [:uint64, RustCallStatus.by_ref],
+    :void
+  attach_function :uniffi_mob_fn_constructor_sessionsigner_from_private_key,
+    [RustBuffer.by_value, RustBuffer.by_value, RustBuffer.by_value, :uint64, RustCallStatus.by_ref],
+    :uint64
+  attach_function :uniffi_mob_fn_constructor_sessionsigner_new,
+    [:uint64, RustBuffer.by_value, RustCallStatus.by_ref],
+    :uint64
+  attach_function :uniffi_mob_fn_method_sessionsigner_grantee_address,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_sessionsigner_granter_address,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_sessionsigner_is_expired,
+    [:uint64, RustCallStatus.by_ref],
+    :int8
+  attach_function :uniffi_mob_fn_method_sessionsigner_metadata,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_sessionsigner_public_key_hex,
+    [:uint64, RustCallStatus.by_ref],
+    RustBuffer.by_value
+  attach_function :uniffi_mob_fn_method_sessionsigner_remaining_seconds,
+    [:uint64, RustCallStatus.by_ref],
+    :uint64
   attach_function :ffi_mob_rustbuffer_alloc,
     [:uint64, RustCallStatus.by_ref],
     RustBuffer.by_value
@@ -1000,16 +1175,46 @@ module UniFFILib
   attach_function :uniffi_mob_checksum_method_client_send,
     [RustCallStatus.by_ref],
     :uint16
-  attach_function :uniffi_mob_checksum_method_signer_address,
+  attach_function :uniffi_mob_checksum_method_cryptosigner_address,
     [RustCallStatus.by_ref],
     :uint16
-  attach_function :uniffi_mob_checksum_method_signer_address_prefix,
+  attach_function :uniffi_mob_checksum_method_cryptosigner_public_key,
     [RustCallStatus.by_ref],
     :uint16
-  attach_function :uniffi_mob_checksum_method_signer_public_key_hex,
+  attach_function :uniffi_mob_checksum_method_cryptosigner_address_prefix,
     [RustCallStatus.by_ref],
     :uint16
-  attach_function :uniffi_mob_checksum_method_signer_sign_bytes,
+  attach_function :uniffi_mob_checksum_method_cryptosigner_sign_bytes,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_rustsigner_address,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_rustsigner_address_prefix,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_rustsigner_public_key_hex,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_rustsigner_sign_bytes,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_grantee_address,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_granter_address,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_is_expired,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_metadata,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_public_key_hex,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_method_sessionsigner_remaining_seconds,
     [RustCallStatus.by_ref],
     :uint16
   attach_function :uniffi_mob_checksum_constructor_client_new,
@@ -1018,7 +1223,13 @@ module UniFFILib
   attach_function :uniffi_mob_checksum_constructor_client_new_with_signer,
     [RustCallStatus.by_ref],
     :uint16
-  attach_function :uniffi_mob_checksum_constructor_signer_from_mnemonic,
+  attach_function :uniffi_mob_checksum_constructor_rustsigner_from_mnemonic,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_constructor_sessionsigner_from_private_key,
+    [RustCallStatus.by_ref],
+    :uint16
+  attach_function :uniffi_mob_checksum_constructor_sessionsigner_new,
     [RustCallStatus.by_ref],
     :uint16
   attach_function :ffi_mob_uniffi_contract_version,
@@ -1041,6 +1252,7 @@ class BroadcastMode
 end
 
 
+  
   
   
   # Record type AccountInfo
@@ -1159,6 +1371,39 @@ class Fee
   end
 end
   
+  # Record type SessionMetadata
+class SessionMetadata
+  attr_reader :granter, :grantee, :created_at, :expires_at, :description
+
+  def initialize(granter:, grantee:, created_at:, expires_at:, description:)
+    @granter = granter
+    @grantee = grantee
+    @created_at = created_at
+    @expires_at = expires_at
+    @description = description
+  end
+
+  def ==(other)
+    if @granter != other.granter
+      return false
+    end
+    if @grantee != other.grantee
+      return false
+    end
+    if @created_at != other.created_at
+      return false
+    end
+    if @expires_at != other.expires_at
+      return false
+    end
+    if @description != other.description
+      return false
+    end
+
+    true
+  end
+end
+  
   # Record type TxResponse
 class TxResponse
   attr_reader :txhash, :code, :raw_log, :gas_wanted, :gas_used, :height
@@ -1254,18 +1499,18 @@ end
         config = config
         RustBuffer.check_lower_TypeChainConfig(config)
         signer = signer
-        (Signer.uniffi_check_lower signer)
+        (RustSigner.uniffi_check_lower signer)
     # Call the (fallible) function before creating any half-baked object instances.
     # Lightly yucky way to bypass the usual "initialize" logic
     # and just create a new instance with the required handle.
-    return uniffi_allocate(Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_client_new_with_signer,RustBuffer.alloc_from_TypeChainConfig(config),(Signer.uniffi_lower signer)))
+    return uniffi_allocate(Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_client_new_with_signer,RustBuffer.alloc_from_TypeChainConfig(config),(RustSigner.uniffi_lower signer)))
   end
   
 
   def attach_signer(signer)
         _signer = _signer
-        (Signer.uniffi_check_lower _signer)
-      Mob.rust_call_with_error(MobError,:uniffi_mob_fn_method_client_attach_signer,uniffi_clone_handle(),(Signer.uniffi_lower _signer))
+        (RustSigner.uniffi_check_lower _signer)
+      Mob.rust_call_with_error(MobError,:uniffi_mob_fn_method_client_attach_signer,uniffi_clone_handle(),(RustSigner.uniffi_lower _signer))
   end
   
   def execute_contract(contract_address, msg, funds, memo)
@@ -1331,7 +1576,7 @@ end
   
 end
   
-  class Signer
+  class CryptoSigner
 
   # A private helper for initializing instances of the class from a raw handle,
   # bypassing any initialization logic and ensuring they are GC'd properly.
@@ -1348,7 +1593,7 @@ end
   def self.uniffi_define_finalizer_by_handle(handle, object_id)
     Proc.new do |_id|
       Mob.rust_call(
-        :uniffi_mob_fn_free_signer,
+        :uniffi_mob_fn_free_cryptosigner,
         handle
       )
     end
@@ -1359,13 +1604,79 @@ end
   # object in a place where this type is expected, could lead to memory unsafety.
   def self.uniffi_check_lower(inst)
     if not inst.is_a? self
-      raise TypeError.new "Expected a Signer instance, got #{inst}"
+      raise TypeError.new "Expected a CryptoSigner instance, got #{inst}"
     end
   end
 
   def uniffi_clone_handle()
     return Mob.rust_call(
-      :uniffi_mob_fn_clone_signer,
+      :uniffi_mob_fn_clone_cryptosigner,
+      @handle
+    )
+  end
+
+  def self.uniffi_lower(inst)
+    return inst.uniffi_clone_handle()
+  end
+
+  
+
+  def address()
+    result = Mob.rust_call(:uniffi_mob_fn_method_cryptosigner_address,uniffi_clone_handle(),)
+    return result.consumeIntoString
+  end
+  def public_key()
+    result = Mob.rust_call(:uniffi_mob_fn_method_cryptosigner_public_key,uniffi_clone_handle(),)
+    return result.consumeIntoBytes
+  end
+  def address_prefix()
+    result = Mob.rust_call(:uniffi_mob_fn_method_cryptosigner_address_prefix,uniffi_clone_handle(),)
+    return result.consumeIntoString
+  end
+  def sign_bytes(message)
+        message = Mob::uniffi_bytes(message)
+        
+    result = Mob.rust_call_with_error(SignerError,:uniffi_mob_fn_method_cryptosigner_sign_bytes,uniffi_clone_handle(),RustBuffer.allocFromBytes(message))
+    return result.consumeIntoBytes
+  end
+  
+end
+  
+  class RustSigner
+
+  # A private helper for initializing instances of the class from a raw handle,
+  # bypassing any initialization logic and ensuring they are GC'd properly.
+  def self.uniffi_allocate(handle)
+    inst = allocate
+    inst.instance_variable_set :@handle, handle
+    ObjectSpace.define_finalizer(inst, uniffi_define_finalizer_by_handle(handle, inst.object_id))
+    return inst
+  end
+
+  # A private helper for registering an object finalizer.
+  # N.B. it's important that this does not capture a reference
+  # to the actual instance, only its underlying handle.
+  def self.uniffi_define_finalizer_by_handle(handle, object_id)
+    Proc.new do |_id|
+      Mob.rust_call(
+        :uniffi_mob_fn_free_rustsigner,
+        handle
+      )
+    end
+  end
+
+  # A private helper for lowering instances into a raw handle.
+  # This does an explicit typecheck, because accidentally lowering a different type of
+  # object in a place where this type is expected, could lead to memory unsafety.
+  def self.uniffi_check_lower(inst)
+    if not inst.is_a? self
+      raise TypeError.new "Expected a RustSigner instance, got #{inst}"
+    end
+  end
+
+  def uniffi_clone_handle()
+    return Mob.rust_call(
+      :uniffi_mob_fn_clone_rustsigner,
       @handle
     )
   end
@@ -1384,27 +1695,122 @@ end
     # Call the (fallible) function before creating any half-baked object instances.
     # Lightly yucky way to bypass the usual "initialize" logic
     # and just create a new instance with the required handle.
-    return uniffi_allocate(Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_signer_from_mnemonic,RustBuffer.allocFromString(mnemonic),RustBuffer.allocFromString(address_prefix),RustBuffer.alloc_from_Optionalstring(derivation_path)))
+    return uniffi_allocate(Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_rustsigner_from_mnemonic,RustBuffer.allocFromString(mnemonic),RustBuffer.allocFromString(address_prefix),RustBuffer.alloc_from_Optionalstring(derivation_path)))
   end
   
 
   def address()
-    result = Mob.rust_call(:uniffi_mob_fn_method_signer_address,uniffi_clone_handle(),)
+    result = Mob.rust_call(:uniffi_mob_fn_method_rustsigner_address,uniffi_clone_handle(),)
     return result.consumeIntoString
   end
   def address_prefix()
-    result = Mob.rust_call(:uniffi_mob_fn_method_signer_address_prefix,uniffi_clone_handle(),)
+    result = Mob.rust_call(:uniffi_mob_fn_method_rustsigner_address_prefix,uniffi_clone_handle(),)
     return result.consumeIntoString
   end
   def public_key_hex()
-    result = Mob.rust_call(:uniffi_mob_fn_method_signer_public_key_hex,uniffi_clone_handle(),)
+    result = Mob.rust_call(:uniffi_mob_fn_method_rustsigner_public_key_hex,uniffi_clone_handle(),)
     return result.consumeIntoString
   end
   def sign_bytes(message)
         message = Mob::uniffi_bytes(message)
         
-    result = Mob.rust_call_with_error(MobError,:uniffi_mob_fn_method_signer_sign_bytes,uniffi_clone_handle(),RustBuffer.allocFromBytes(message))
+    result = Mob.rust_call_with_error(MobError,:uniffi_mob_fn_method_rustsigner_sign_bytes,uniffi_clone_handle(),RustBuffer.allocFromBytes(message))
     return result.consumeIntoBytes
+  end
+  
+end
+  
+  class SessionSigner
+
+  # A private helper for initializing instances of the class from a raw handle,
+  # bypassing any initialization logic and ensuring they are GC'd properly.
+  def self.uniffi_allocate(handle)
+    inst = allocate
+    inst.instance_variable_set :@handle, handle
+    ObjectSpace.define_finalizer(inst, uniffi_define_finalizer_by_handle(handle, inst.object_id))
+    return inst
+  end
+
+  # A private helper for registering an object finalizer.
+  # N.B. it's important that this does not capture a reference
+  # to the actual instance, only its underlying handle.
+  def self.uniffi_define_finalizer_by_handle(handle, object_id)
+    Proc.new do |_id|
+      Mob.rust_call(
+        :uniffi_mob_fn_free_sessionsigner,
+        handle
+      )
+    end
+  end
+
+  # A private helper for lowering instances into a raw handle.
+  # This does an explicit typecheck, because accidentally lowering a different type of
+  # object in a place where this type is expected, could lead to memory unsafety.
+  def self.uniffi_check_lower(inst)
+    if not inst.is_a? self
+      raise TypeError.new "Expected a SessionSigner instance, got #{inst}"
+    end
+  end
+
+  def uniffi_clone_handle()
+    return Mob.rust_call(
+      :uniffi_mob_fn_clone_sessionsigner,
+      @handle
+    )
+  end
+
+  def self.uniffi_lower(inst)
+    return inst.uniffi_clone_handle()
+  end
+  def initialize(session_key, metadata)
+        session_key = session_key
+        (RustSigner.uniffi_check_lower session_key)
+        metadata = metadata
+        RustBuffer.check_lower_TypeSessionMetadata(metadata)
+    handle = Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_sessionsigner_new,(RustSigner.uniffi_lower session_key),RustBuffer.alloc_from_TypeSessionMetadata(metadata))
+    @handle = handle
+    ObjectSpace.define_finalizer(self, self.class.uniffi_define_finalizer_by_handle(handle, self.object_id))
+  end
+
+  def self.from_private_key(private_key, address_prefix, granter_address, duration_seconds)
+        private_key = Mob::uniffi_bytes(private_key)
+        
+        address_prefix = Mob::uniffi_utf8(address_prefix)
+        
+        granter_address = Mob::uniffi_utf8(granter_address)
+        
+        duration_seconds = Mob::uniffi_in_range(duration_seconds, "u64", 0, 2**64)
+        
+    # Call the (fallible) function before creating any half-baked object instances.
+    # Lightly yucky way to bypass the usual "initialize" logic
+    # and just create a new instance with the required handle.
+    return uniffi_allocate(Mob.rust_call_with_error(MobError,:uniffi_mob_fn_constructor_sessionsigner_from_private_key,RustBuffer.allocFromBytes(private_key),RustBuffer.allocFromString(address_prefix),RustBuffer.allocFromString(granter_address),duration_seconds))
+  end
+  
+
+  def grantee_address()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_grantee_address,uniffi_clone_handle(),)
+    return result.consumeIntoString
+  end
+  def granter_address()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_granter_address,uniffi_clone_handle(),)
+    return result.consumeIntoString
+  end
+  def is_expired()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_is_expired,uniffi_clone_handle(),)
+    return 1 == result
+  end
+  def metadata()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_metadata,uniffi_clone_handle(),)
+    return result.consumeIntoTypeSessionMetadata
+  end
+  def public_key_hex()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_public_key_hex,uniffi_clone_handle(),)
+    return result.consumeIntoString
+  end
+  def remaining_seconds()
+    result = Mob.rust_call(:uniffi_mob_fn_method_sessionsigner_remaining_seconds,uniffi_clone_handle(),)
+    return result.to_i
   end
   
 end

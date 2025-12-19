@@ -21,7 +21,7 @@ def main
              "put fitness slide dash point basket jaguar fun humor multiply " \
              "emotion rescue brand pull"
 
-  signer = Mob::Signer.from_mnemonic(
+  signer = Mob::RustSigner.from_mnemonic(
     mnemonic,
     "xion",
     "m/44'/118'/0'/0/0"

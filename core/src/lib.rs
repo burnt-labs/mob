@@ -16,36 +16,37 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use mob::{Client, Signer, ChainConfig, Coin};
+//! use mob::{Client, RustSigner, ChainConfig, Coin};
+//! use std::sync::Arc;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create chain configuration
 //!     let config = ChainConfig::new(
-//!         "xion-testnet-1",
-//!         "https://rpc.xion-testnet-1.burnt.com:443",
-//!         "xion"
+//!         "xion-testnet-1".to_string(),
+//!         "https://rpc.xion-testnet-1.burnt.com:443".to_string(),
+//!         "xion".to_string()
 //!     );
 //!
 //!     // Create RPC client
-//!     let mut client = Client::new(config).await?;
+//!     let mut client = Client::new(config)?;
 //!
 //!     // Create signer from mnemonic
-//!     let signer = Signer::from_mnemonic(
-//!         "your mnemonic words here",
-//!         "xion",
+//!     let signer = RustSigner::from_mnemonic(
+//!         "your mnemonic words here".to_string(),
+//!         "xion".to_string(),
 //!         None
 //!     )?;
 //!
 //!     // Attach signer to client
-//!     client.attach_signer(signer).await?;
+//!     client.attach_crypto_signer(Arc::new(signer)).await?;
 //!
 //!     // Send tokens
 //!     let response = client.send(
-//!         "xion1recipient...",
-//!         vec![Coin::new("uxion", "1000000")],
+//!         "xion1recipient...".to_string(),
+//!         vec![Coin::new("uxion".to_string(), "1000000".to_string())],
 //!         Some("Test transfer".to_string())
-//!     ).await?;
+//!     )?;
 //!
 //!     println!("Transaction hash: {}", response.txhash);
 //!
@@ -55,10 +56,12 @@
 
 pub mod account;
 pub mod client;
+pub mod crypto_signer;
 pub mod error;
+#[cfg(feature = "rust-signer")]
+pub mod rust_signer;
 pub mod session;
 pub mod session_signer;
-pub mod signer;
 pub mod transaction;
 pub mod types;
 
@@ -66,10 +69,12 @@ pub mod types;
 pub use account::{abstraction, Account};
 #[cfg(feature = "rpc-client")]
 pub use client::Client;
+pub use crypto_signer::{CryptoSigner, SignerError};
 pub use error::{MobError, Result};
+#[cfg(feature = "rust-signer")]
+pub use rust_signer::RustSigner;
 pub use session::SessionMetadata;
 pub use session_signer::SessionSigner;
-pub use signer::Signer;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
     AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, TxResponse,

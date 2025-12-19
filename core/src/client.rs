@@ -2,10 +2,12 @@
 #[cfg(feature = "rpc-client")]
 use tendermint_rpc::{Client as TmClient, HttpClient};
 
+#[cfg(feature = "rust-signer")]
+use crate::rust_signer::RustSigner;
 use crate::{
     account::Account,
+    crypto_signer::CryptoSigner,
     error::{MobError, Result},
-    signer::Signer,
     transaction::TransactionBuilder,
     types::{AccountInfo, BroadcastMode, ChainConfig, Coin, TxResponse},
 };
@@ -19,7 +21,7 @@ use std::{str::FromStr, sync::Arc};
 pub struct Client {
     config: ChainConfig,
     rpc_client: HttpClient,
-    signer: Option<Arc<Signer>>,
+    signer: Option<Arc<dyn CryptoSigner>>,
     account: Option<Account>,
 }
 
@@ -36,31 +38,6 @@ impl Client {
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
         runtime.block_on(Self::new_async(config))
-    }
-
-    /// Create a new RPC client with a signer attached (synchronous wrapper for FFI)
-    #[uniffi::constructor]
-    pub fn new_with_signer(config: ChainConfig, signer: Arc<Signer>) -> Result<Self> {
-        // Create a runtime and block on the async operation
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
-
-        runtime.block_on(async {
-            let mut client = Self::new_async(config).await?;
-            client.attach_signer_internal(signer).await?;
-            Ok(client)
-        })
-    }
-
-    /// Attach a signer to the client
-    pub fn attach_signer(&self, _signer: Arc<Signer>) -> Result<()> {
-        // This method is exported for FFI but we can't mutate through UniFFI
-        // For now, return an error - this needs a different architecture
-        Err(MobError::Generic(
-            "attach_signer not yet implemented for FFI".to_string(),
-        ))
     }
 
     /// Query account information (synchronous wrapper)
@@ -165,6 +142,40 @@ impl Client {
     }
 }
 
+// RustSigner-specific FFI constructors (only with rust-signer feature)
+#[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
+impl Client {
+    /// Create a new RPC client with a signer attached (synchronous wrapper for FFI)
+    ///
+    /// Note: This constructor is only available with the `rust-signer` feature.
+    #[uniffi::constructor]
+    pub fn new_with_signer(config: ChainConfig, signer: Arc<RustSigner>) -> Result<Self> {
+        // Create a runtime and block on the async operation
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(async {
+            let mut client = Self::new_async(config).await?;
+            client.attach_signer_internal(signer).await?;
+            Ok(client)
+        })
+    }
+
+    /// Attach a signer to the client
+    ///
+    /// Note: This method is only available with the `rust-signer` feature.
+    pub fn attach_signer(&self, _signer: Arc<RustSigner>) -> Result<()> {
+        // This method is exported for FFI but we can't mutate through UniFFI
+        // For now, return an error - this needs a different architecture
+        Err(MobError::Generic(
+            "attach_signer not yet implemented for FFI".to_string(),
+        ))
+    }
+}
+
 // Internal implementation
 #[cfg(feature = "rpc-client")]
 impl Client {
@@ -183,7 +194,28 @@ impl Client {
     }
 
     /// Attach a signer to the client (internal)
-    pub async fn attach_signer_internal(&mut self, signer: Arc<Signer>) -> Result<()> {
+    ///
+    /// Note: This method is only available with the `rust-signer` feature.
+    #[cfg(feature = "rust-signer")]
+    pub async fn attach_signer_internal(&mut self, signer: Arc<RustSigner>) -> Result<()> {
+        // Create account for the signer
+        let address = signer.address();
+        let account = Account::new(address);
+
+        // Convert to trait object
+        self.signer = Some(signer as Arc<dyn CryptoSigner>);
+        self.account = Some(account);
+
+        // Fetch account info
+        self.refresh_account_info().await?;
+
+        Ok(())
+    }
+
+    /// Attach any CryptoSigner implementation to the client
+    ///
+    /// This is the primary method for Rust code to attach custom signers.
+    pub async fn attach_crypto_signer(&mut self, signer: Arc<dyn CryptoSigner>) -> Result<()> {
         // Create account for the signer
         let address = signer.address();
         let account = Account::new(address);
@@ -198,7 +230,7 @@ impl Client {
     }
 
     /// Get the attached signer
-    pub fn signer(&self) -> Option<&Arc<Signer>> {
+    pub fn signer(&self) -> Option<&Arc<dyn CryptoSigner>> {
         self.signer.as_ref()
     }
 
@@ -427,7 +459,11 @@ impl Client {
         }
 
         // Sign transaction
-        let tx_bytes = tx_builder.sign(signer, account.account_number()?, account.sequence()?)?;
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
 
         // Broadcast transaction
         let response = self
@@ -476,7 +512,11 @@ impl Client {
         }
 
         // Sign transaction
-        let tx_bytes = tx_builder.sign(signer, account.account_number()?, account.sequence()?)?;
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
 
         // Broadcast transaction
         let response = self

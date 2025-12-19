@@ -8,7 +8,7 @@ Run with: python -m pytest python/tests/ -v
 """
 
 import pytest
-from mob import Client, Coin, Signer
+from mob import Client, Coin, RustSigner
 
 
 class TestBasicRPCQueries:
@@ -102,7 +102,7 @@ class TestErrorHandling:
     def test_invalid_mnemonic(self):
         """Test creating signer with invalid mnemonic."""
         with pytest.raises(Exception):
-            Signer.from_mnemonic(
+            RustSigner.from_mnemonic(
                 "invalid mnemonic words",
                 "xion",
                 "m/44'/118'/0'/0/0"
@@ -132,13 +132,13 @@ class TestMultipleSigners:
             "slide dash point basket jaguar fun humor multiply emotion rescue brand pull"
         )
 
-        signer1 = Signer.from_mnemonic(
+        signer1 = RustSigner.from_mnemonic(
             mnemonic,
             "xion",
             "m/44'/118'/0'/0/0"
         )
 
-        signer2 = Signer.from_mnemonic(
+        signer2 = RustSigner.from_mnemonic(
             mnemonic,
             "xion",
             "m/44'/118'/0'/0/1"

@@ -27,7 +27,7 @@ class TestRpcQueries < Minitest::Test
       gas_price: "0.025"
     )
 
-    @signer = Mob::Signer.from_mnemonic(
+    @signer = Mob::RustSigner.from_mnemonic(
       TEST_MNEMONIC,
       ADDRESS_PREFIX,
       "m/44'/118'/0'/0/0"
@@ -65,7 +65,7 @@ class TestRpcQueries < Minitest::Test
   end
 
   def test_create_signer
-    signer = Mob::Signer.from_mnemonic(
+    signer = Mob::RustSigner.from_mnemonic(
       TEST_MNEMONIC,
       ADDRESS_PREFIX,
       "m/44'/118'/0'/0/0"
@@ -113,7 +113,7 @@ class TestRpcQueries < Minitest::Test
 
   def test_invalid_mnemonic
     assert_raises do
-      Mob::Signer.from_mnemonic(
+      Mob::RustSigner.from_mnemonic(
         "invalid mnemonic words",
         "xion",
         "m/44'/118'/0'/0/0"
@@ -132,13 +132,13 @@ class TestRpcQueries < Minitest::Test
   end
 
   def test_multiple_signers
-    signer1 = Mob::Signer.from_mnemonic(
+    signer1 = Mob::RustSigner.from_mnemonic(
       TEST_MNEMONIC,
       "xion",
       "m/44'/118'/0'/0/0"
     )
 
-    signer2 = Mob::Signer.from_mnemonic(
+    signer2 = Mob::RustSigner.from_mnemonic(
       TEST_MNEMONIC,
       "xion",
       "m/44'/118'/0'/0/1"
@@ -184,7 +184,7 @@ class TestIntegrationSendFunds < Minitest::Test
       gas_price: "0.025"
     )
 
-    @signer = Mob::Signer.from_mnemonic(
+    @signer = Mob::RustSigner.from_mnemonic(
       TEST_MNEMONIC,
       ADDRESS_PREFIX,
       "m/44'/118'/0'/0/0"

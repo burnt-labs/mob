@@ -30,7 +30,7 @@ def main
 
   # Step 1: Create signer
   puts "\n🔑 Step 1: Creating signer from mnemonic..."
-  signer = Mob::Signer.from_mnemonic(
+  signer = Mob::RustSigner.from_mnemonic(
     MNEMONIC,
     "xion",
     "m/44'/118'/0'/0/0"

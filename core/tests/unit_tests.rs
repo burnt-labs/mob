@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Coin, Fee, Signer};
+use mob::{ChainConfig, Coin, Fee, RustSigner};
 
 #[test]
 fn test_coin_creation() {
@@ -80,9 +80,9 @@ fn test_fee_with_granter() {
 #[test]
 fn test_signer_from_mnemonic() {
     // Standard test mnemonic (abandon x 11 + about)
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let result = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None);
+    let result = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None);
 
     assert!(result.is_ok(), "Signer creation should succeed");
 
@@ -103,9 +103,9 @@ fn test_signer_from_mnemonic() {
 
 #[test]
 fn test_signer_public_key() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     let pub_key_hex = signer.public_key_hex();
 
@@ -127,22 +127,22 @@ fn test_signer_public_key() {
 
 #[test]
 fn test_signer_address_prefix() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     assert_eq!(signer.address_prefix(), "xion");
 }
 
 #[test]
 fn test_signer_different_prefixes() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
     let signer_xion =
-        Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+        RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     let signer_cosmos =
-        Signer::from_mnemonic(mnemonic.to_string(), "cosmos".to_string(), None).unwrap();
+        RustSigner::from_mnemonic(mnemonic.to_string(), "cosmos".to_string(), None).unwrap();
 
     // Same mnemonic should generate different addresses for different prefixes
     assert_ne!(signer_xion.address(), signer_cosmos.address());
@@ -156,16 +156,16 @@ fn test_signer_different_prefixes() {
 
 #[test]
 fn test_signer_custom_derivation_path() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer1 = Signer::from_mnemonic(
+    let signer1 = RustSigner::from_mnemonic(
         mnemonic.to_string(),
         "xion".to_string(),
         Some("m/44'/118'/0'/0/0".to_string()),
     )
     .unwrap();
 
-    let signer2 = Signer::from_mnemonic(
+    let signer2 = RustSigner::from_mnemonic(
         mnemonic.to_string(),
         "xion".to_string(),
         Some("m/44'/118'/0'/0/1".to_string()),
@@ -182,7 +182,7 @@ fn test_signer_custom_derivation_path() {
 
 #[test]
 fn test_signer_invalid_mnemonic() {
-    let result = Signer::from_mnemonic(
+    let result = RustSigner::from_mnemonic(
         "invalid mnemonic phrase".to_string(),
         "xion".to_string(),
         None,
@@ -193,8 +193,8 @@ fn test_signer_invalid_mnemonic() {
 
 #[test]
 fn test_signer_sign_bytes() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    let signer = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     let message = b"Hello, XION!".to_vec();
     let result = signer.sign_bytes(message);
