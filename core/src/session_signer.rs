@@ -11,6 +11,7 @@ use cosmrs::{
 use std::sync::Arc;
 
 /// A session signer that wraps messages in MsgExec (Authz) for session key usage
+#[derive(Debug)]
 #[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct SessionSigner {
     /// The underlying session key signer
@@ -250,27 +251,162 @@ mod tests {
 
     #[test]
     fn test_wrap_in_msg_exec() {
-        let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
-        let session_key = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
-            .expect("Failed to create signer");
+        use crate::transaction::messages;
+        use crate::types::Coin;
 
-        let granter = "xion1granter".to_string();
+        // Create two different signers for granter and grantee
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            Signer::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = Signer::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let granter = granter_signer.address();
         let grantee = session_key.address();
-        let metadata = SessionMetadata::with_duration(granter, grantee, 3600);
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
 
         let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
             .expect("Failed to create session signer");
 
-        // Create a dummy message
-        let dummy_msg = Any {
-            type_url: "/cosmos.bank.v1beta1.MsgSend".to_string(),
-            value: vec![1, 2, 3],
-        };
+        // Create an actual MsgSend message using valid addresses
+        let recipient_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let recipient_signer = Signer::from_mnemonic(
+            recipient_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
 
-        let result = session_signer.wrap_in_msg_exec(vec![dummy_msg]);
+        let amount = vec![Coin::new("uxion", "1000")];
+        let msg_send = messages::msg_send(&granter, &recipient_signer.address(), amount)
+            .expect("Failed to create MsgSend");
+
+        let result = session_signer.wrap_in_msg_exec(vec![msg_send]);
         assert!(result.is_ok());
 
         let wrapped = result.unwrap();
         assert_eq!(wrapped.type_url, "/cosmos.authz.v1beta1.MsgExec");
+
+        // Verify the wrapped message can be decoded
+        use cosmos_sdk_proto::cosmos::authz::v1beta1::MsgExec;
+        use prost::Message;
+
+        let decoded = MsgExec::decode(wrapped.value.as_slice());
+        assert!(decoded.is_ok());
+
+        let msg_exec = decoded.unwrap();
+        assert_eq!(msg_exec.grantee, session_signer.grantee_address());
+        assert_eq!(msg_exec.msgs.len(), 1);
+        assert_eq!(msg_exec.msgs[0].type_url, "/cosmos.bank.v1beta1.MsgSend");
+    }
+
+    #[test]
+    fn test_sign_transaction_with_session() {
+        use crate::transaction::messages;
+        use crate::types::{Coin, Fee};
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use std::str::FromStr;
+
+        // Create granter signer
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            Signer::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        // Create session key signer
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = Signer::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        // Create recipient signer
+        let recipient_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let recipient_signer = Signer::from_mnemonic(
+            recipient_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        // Create a real MsgSend using valid addresses
+        let amount = vec![Coin::new("uxion", "1000000")];
+        let msg_send = messages::msg_send(&granter, &recipient_signer.address(), amount)
+            .expect("Failed to create MsgSend");
+
+        // Create fee
+        let fee = Fee::new(vec![Coin::new("uxion", "5000")], 200_000);
+
+        // Sign transaction
+        let chain_id = ChainId::from_str("xion-testnet-1").expect("Invalid chain ID");
+        let account_number = 123;
+        let sequence = 5;
+
+        let tx_bytes = session_signer
+            .sign_transaction(
+                vec![msg_send],
+                &fee,
+                &chain_id,
+                account_number,
+                sequence,
+                Some("Test session transaction".to_string()),
+            )
+            .expect("Failed to sign transaction");
+
+        // Verify we got valid transaction bytes
+        assert!(!tx_bytes.is_empty());
+
+        // Decode and verify the transaction structure
+        use cosmos_sdk_proto::cosmos::tx::v1beta1::TxRaw;
+        use prost::Message;
+
+        let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
+        assert!(!tx_raw.body_bytes.is_empty());
+        assert!(!tx_raw.auth_info_bytes.is_empty());
+        assert_eq!(tx_raw.signatures.len(), 1);
+
+        // Decode body and verify it contains MsgExec
+        use cosmos_sdk_proto::cosmos::tx::v1beta1::TxBody;
+        let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
+        assert_eq!(tx_body.messages.len(), 1);
+        assert_eq!(
+            tx_body.messages[0].type_url,
+            "/cosmos.authz.v1beta1.MsgExec"
+        );
+        assert_eq!(tx_body.memo, "Test session transaction");
+    }
+
+    #[test]
+    fn test_expired_session_cannot_sign() {
+        let mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let session_key = Signer::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let granter = "xion1granter000000000000000000000000000000".to_string();
+        let grantee = session_key.address();
+
+        // Create an already expired session
+        let metadata = SessionMetadata::new(granter.clone(), grantee, 0);
+
+        // Should fail to create SessionSigner with expired metadata
+        let result = SessionSigner::new(Arc::new(session_key), metadata);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("expired"));
     }
 }
