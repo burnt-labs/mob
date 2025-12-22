@@ -4,32 +4,32 @@ Swift bindings for the Mob library - a multi-platform signing client for the XIO
 
 ## Status
 
-✅ **Swift bindings are fully functional!** The library is packaged as an XCFramework and works with Swift Package Manager.
+Swift bindings are fully functional. The library is packaged as an XCFramework and works with Swift Package Manager.
 
 ### Completed
 
-- ✅ UniFFI bindings generated successfully
-- ✅ All Swift APIs defined (Client, Signer, types)
-- ✅ Compatible with the same API as Ruby/Python
-- ✅ XCFramework created for macOS (arm64)
-- ✅ Package.swift configured for SPM
-- ✅ Basic test suite included
+- UniFFI bindings generated successfully
+- All Swift APIs defined (Client, Signer, types)
+- Compatible with the same API as Ruby/Python
+- XCFramework created for macOS (arm64)
+- Package.swift configured for SPM
+- Basic test suite included
 
 ### Future Enhancements
 
-- ⏳ Multi-architecture support (x86_64, iOS, iOS Simulator)
-- ⏳ Comprehensive test suite with integration tests
-- ⏳ CI/CD for automated XCFramework builds
+- Multi-architecture support (x86_64, iOS, iOS Simulator)
+- Comprehensive test suite with integration tests
+- CI/CD for automated XCFramework builds
 
 ## Overview
 
 Mob provides a comprehensive Swift interface for interacting with the XION blockchain, including:
 
-- 🔐 **Key Management** - Mnemonic-based key derivation and private key management
-- 📝 **Transaction Building** - Intuitive API for building and signing transactions
-- 🌐 **RPC Client** - Full-featured client for interacting with XION nodes
-- 🔄 **Account Abstraction** - Support for XION's account abstraction features
-- 🦀 **Pure Rust Core** - High-performance core logic with Swift bindings via UniFFI
+- **Key Management** - Mnemonic-based key derivation and private key management
+- **Transaction Building** - API for building and signing transactions
+- **RPC Client** - Full-featured client for interacting with XION nodes
+- **Account Abstraction** - Support for XION's account abstraction features
+- **Pure Rust Core** - High-performance core logic with Swift bindings via UniFFI
 
 ## Installation
 
@@ -77,16 +77,16 @@ The `examples/` directory contains working sample code.
 The test suite includes comprehensive coverage matching Ruby and Python bindings:
 
 **Test Coverage:**
-- ✅ Client creation
-- ✅ RPC queries (height, chain ID, sync status)
-- ✅ Signer creation and key management
-- ✅ Account queries
-- ✅ Balance queries
-- ✅ Message signing
-- ✅ Error handling (invalid mnemonics, addresses)
-- ✅ Multiple signer derivation paths
-- ✅ Coin creation
-- ✅ Integration test for sending funds on testnet
+- Client creation
+- RPC queries (height, chain ID, sync status)
+- Signer creation and key management
+- Account queries
+- Balance queries
+- Message signing
+- Error handling (invalid mnemonics, addresses)
+- Multiple signer derivation paths
+- Coin creation
+- Integration test for sending funds on testnet
 
 Run the test suite using Swift Package Manager:
 
@@ -248,11 +248,11 @@ To use a different network, modify the `ChainConfig` parameters accordingly.
 
 ## Security Notes
 
-⚠️ **IMPORTANT SECURITY WARNINGS:**
+Important security considerations:
 
-1. **Never use production mnemonics in examples or tests**
-2. **Never commit mnemonics to version control**
-3. **Use environment variables for sensitive data:**
+1. Never use production mnemonics in examples or tests
+2. Never commit mnemonics to version control
+3. Use environment variables for sensitive data:
 
 ```swift
 guard let mnemonic = ProcessInfo.processInfo.environment["TEST_MNEMONIC"] else {
@@ -260,8 +260,8 @@ guard let mnemonic = ProcessInfo.processInfo.environment["TEST_MNEMONIC"] else {
 }
 ```
 
-4. **The test mnemonic in these examples is for demonstration only**
-5. **Keep your mainnet keys secure and separate from testnet keys**
+4. The test mnemonic in these examples is for demonstration only
+5. Keep your mainnet keys secure and separate from testnet keys
 
 ## Troubleshooting
 

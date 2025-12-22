@@ -97,8 +97,6 @@ fn test_signer_from_mnemonic() {
 
     // Address should have reasonable length (typically 43 chars for bech32)
     assert!(address.len() > 10, "Address should be reasonable length");
-
-    println!("Generated address: {}", address);
 }
 
 #[test]
@@ -121,8 +119,6 @@ fn test_signer_public_key() {
         pub_key_hex.chars().all(|c| c.is_ascii_hexdigit()),
         "Should be valid hex"
     );
-
-    println!("Public key: {}", pub_key_hex);
 }
 
 #[test]
@@ -149,9 +145,6 @@ fn test_signer_different_prefixes() {
 
     // But same public key
     assert_eq!(signer_xion.public_key_hex(), signer_cosmos.public_key_hex());
-
-    println!("XION address: {}", signer_xion.address());
-    println!("Cosmos address: {}", signer_cosmos.address());
 }
 
 #[test]
@@ -175,9 +168,6 @@ fn test_signer_custom_derivation_path() {
     // Different derivation paths should generate different addresses
     assert_ne!(signer1.address(), signer2.address());
     assert_ne!(signer1.public_key_hex(), signer2.public_key_hex());
-
-    println!("Account 0 address: {}", signer1.address());
-    println!("Account 1 address: {}", signer2.address());
 }
 
 #[test]
@@ -205,8 +195,6 @@ fn test_signer_sign_bytes() {
 
     // ECDSA signature should be 64 bytes
     assert_eq!(signature.len(), 64, "Signature should be 64 bytes");
-
-    println!("Signature (hex): {}", hex::encode(&signature));
 }
 
 #[test]

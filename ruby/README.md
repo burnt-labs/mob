@@ -6,11 +6,11 @@ Ruby bindings for the Mob library - a multi-platform signing client for the XION
 
 Mob provides a comprehensive Ruby interface for interacting with the XION blockchain, including:
 
-- 🔐 **Key Management** - Mnemonic-based key derivation and private key management
-- 📝 **Transaction Building** - Intuitive API for building and signing transactions
-- 🌐 **RPC Client** - Full-featured client for interacting with XION nodes
-- 🔄 **Account Abstraction** - Support for XION's account abstraction features
-- 🦀 **Pure Rust Core** - High-performance core logic with Ruby bindings via UniFFI
+- **Key Management** - Mnemonic-based key derivation and private key management
+- **Transaction Building** - API for building and signing transactions
+- **RPC Client** - Full-featured client for interacting with XION nodes
+- **Account Abstraction** - Support for XION's account abstraction features
+- **Pure Rust Core** - High-performance core logic with Ruby bindings via UniFFI
 
 ## Installation
 
@@ -58,7 +58,7 @@ The `examples/` directory contains working sample code:
 # From the ruby/ directory
 ruby examples/basic_query.rb
 ruby examples/account_query.rb
-ruby examples/send_transaction.rb  # ⚠️ Requires funded test account
+ruby examples/send_transaction.rb  # Requires funded test account
 ```
 
 ## Running Tests
@@ -224,19 +224,19 @@ To use a different network, modify the `ChainConfig` parameters accordingly.
 
 ## Security Notes
 
-⚠️ **IMPORTANT SECURITY WARNINGS:**
+Important security considerations:
 
-1. **Never use production mnemonics in examples or tests**
-2. **Never commit mnemonics to version control**
-3. **Use environment variables for sensitive data:**
+1. Never use production mnemonics in examples or tests
+2. Never commit mnemonics to version control
+3. Use environment variables for sensitive data:
 
 ```ruby
 mnemonic = ENV['TEST_MNEMONIC']
 raise "TEST_MNEMONIC environment variable not set" if mnemonic.nil?
 ```
 
-4. **The test mnemonic in these examples is for demonstration only**
-5. **Keep your mainnet keys secure and separate from testnet keys**
+4. The test mnemonic in these examples is for demonstration only
+5. Keep your mainnet keys secure and separate from testnet keys
 
 ## Troubleshooting
 

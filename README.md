@@ -1,16 +1,16 @@
-# Mob 🦀
+# Mob
 
-A multi-platform signing client library for the XION blockchain with **session key support** for secure, time-limited transaction signing. Written in Rust using Mozilla's UniFFI framework.
+A multi-platform signing client library for the XION blockchain with session key support for secure, time-limited transaction signing. Written in Rust using Mozilla's UniFFI framework.
 
 ## Features
 
-- ⏱️ **Session Key Signing**: Time-limited session keys with automatic MsgExec (authz) wrapping for secure delegation
-- 🔐 **Key Management**: Mnemonic-based key derivation and private key management
-- 📝 **Transaction Building**: Intuitive API for building and signing transactions
-- 🌐 **RPC Client**: Full-featured client for interacting with XION nodes
-- 🔄 **Account Abstraction**: Support for XION's account abstraction features
-- 🦀 **Pure Rust**: Core logic written in Rust for safety and performance
-- 🌍 **Multi-platform**: Generate bindings for Kotlin, Swift, Python, Ruby, and more via UniFFI
+- **Session Key Signing**: Time-limited session keys with automatic MsgExec (authz) wrapping for secure delegation
+- **Key Management**: Mnemonic-based key derivation and private key management
+- **Transaction Building**: API for building and signing transactions
+- **RPC Client**: Client for interacting with XION nodes
+- **Account Abstraction**: Support for XION's account abstraction features
+- **Pure Rust**: Core logic written in Rust for safety and performance
+- **Multi-platform**: Generate bindings for Kotlin, Swift, Python, Ruby, and more via UniFFI
 
 ## Architecture
 
@@ -159,9 +159,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 UniFFI can generate bindings for multiple languages.
 
-#### Python (Recommended - Complete Setup Available)
+#### Python
 
-We provide a complete script that handles everything:
+The following script handles the complete setup:
 
 ```bash
 ./scripts/generate_python_bindings.sh
@@ -181,7 +181,7 @@ pip install .
 python example_usage.py
 ```
 
-📚 **See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for complete Python documentation**
+See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for complete Python documentation.
 
 #### Kotlin (Android)
 
@@ -399,17 +399,20 @@ cargo check
 
 ## Roadmap
 
-- [x] Core signing functionality
-- [x] RPC client implementation
-- [x] Transaction building and broadcasting
-- [x] Account abstraction support
-- [x] UniFFI bindings interface
-- [ ] gRPC client implementation
-- [ ] Advanced account abstraction features
-- [ ] Gas estimation improvements
-- [ ] Mobile SDK packages (iOS/Android)
-- [ ] Python package distribution
-- [ ] Comprehensive integration tests
+Completed:
+- Core signing functionality
+- RPC client implementation
+- Transaction building and broadcasting
+- Account abstraction support
+- UniFFI bindings interface
+
+In Progress:
+- gRPC client implementation
+- Advanced account abstraction features
+- Gas estimation improvements
+- Mobile SDK packages (iOS/Android)
+- Python package distribution
+- Comprehensive integration tests
 
 ## Contributing
 
