@@ -274,7 +274,7 @@ impl Client {
         let query_path = "/cosmos.auth.v1beta1.Query/Account".to_string();
 
         // Create the query request protobuf
-        let query_request = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountRequest {
+        let query_request = xion_types::cosmos::auth::v1beta1::QueryAccountRequest {
             address: address.to_string(),
         };
 
@@ -302,7 +302,7 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountResponse::decode(
+        let query_response = xion_types::cosmos::auth::v1beta1::QueryAccountResponse::decode(
             response.value.as_slice(),
         )
         .map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
@@ -313,10 +313,9 @@ impl Client {
             .ok_or_else(|| MobError::Account("Account not found".to_string()))?;
 
         // Decode BaseAccount from Any
-        let base_account = cosmos_sdk_proto::cosmos::auth::v1beta1::BaseAccount::decode(
-            account_any.value.as_slice(),
-        )
-        .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
+        let base_account =
+            xion_types::cosmos::auth::v1beta1::BaseAccount::decode(account_any.value.as_slice())
+                .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
 
         Ok(AccountInfo {
             address: address.to_string(),
@@ -332,7 +331,7 @@ impl Client {
         let query_path = "/cosmos.bank.v1beta1.Query/Balance".to_string();
 
         // Create the query request protobuf
-        let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceRequest {
+        let query_request = xion_types::cosmos::bank::v1beta1::QueryBalanceRequest {
             address: address.to_string(),
             denom: denom.to_string(),
         };
@@ -361,7 +360,7 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceResponse::decode(
+        let query_response = xion_types::cosmos::bank::v1beta1::QueryBalanceResponse::decode(
             response.value.as_slice(),
         )
         .map_err(|e| MobError::Transaction(format!("Failed to decode balance response: {}", e)))?;
@@ -379,7 +378,7 @@ impl Client {
         let query_path = "/cosmos.bank.v1beta1.Query/AllBalances".to_string();
 
         // Create the query request protobuf
-        let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesRequest {
+        let query_request = xion_types::cosmos::bank::v1beta1::QueryAllBalancesRequest {
             address: address.to_string(),
             pagination: None,
             resolve_denom: false,
@@ -409,13 +408,12 @@ impl Client {
         }
 
         // Decode the response
-        let query_response =
-            cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesResponse::decode(
-                response.value.as_slice(),
-            )
-            .map_err(|e| {
-                MobError::Transaction(format!("Failed to decode all balances response: {}", e))
-            })?;
+        let query_response = xion_types::cosmos::bank::v1beta1::QueryAllBalancesResponse::decode(
+            response.value.as_slice(),
+        )
+        .map_err(|e| {
+            MobError::Transaction(format!("Failed to decode all balances response: {}", e))
+        })?;
 
         // Convert to our Coin types
         Ok(query_response
