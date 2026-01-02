@@ -13,7 +13,11 @@ rescue LoadError
 end
 
 # Load xion-types protobuf generated files
-$LOAD_PATH.unshift('/Users/mv/Development/burnt/xion-types/ruby/types')
+# NOTE: For production use, xion-types should be made an installable gem
+# and added as a dependency, rather than using $LOAD_PATH manipulation.
+# This relative path assumes xion-types is a sibling directory to mob.
+xion_types_path = File.expand_path('../../../../xion-types/ruby/types', __FILE__)
+$LOAD_PATH.unshift(xion_types_path) if File.directory?(xion_types_path)
 
 begin
   require 'cosmos/base/v1beta1/coin_pb'
@@ -22,7 +26,8 @@ begin
 rescue LoadError => e
   puts "⚠️  Failed to load xion-types protobuf files: #{e.message}"
   puts "Ensure xion-types Ruby protobufs are generated at:"
-  puts "  /Users/mv/Development/burnt/xion-types/ruby/types"
+  puts "  Expected structure: mob/../xion-types/ruby/types"
+  puts "  Resolved path: #{xion_types_path}"
   exit 1
 end
 

@@ -247,16 +247,24 @@ msg_bytes = Cosmos::Bank::V1beta1::MsgSend.encode(msg_send)
 
 ## Loading Path Configuration
 
-If xion-types is in a different location, update the load path in your test file:
+**NOTE: For production use, xion-types should be packaged and published as an installable gem, rather than using $LOAD_PATH manipulation.**
+
+The test file uses a relative path assuming xion-types is a sibling directory to mob:
 
 ```ruby
-# Add xion-types to load path
-$LOAD_PATH.unshift('/path/to/xion-types/ruby/types')
+# Add xion-types to load path (assumes mob/../xion-types structure)
+xion_types_path = File.expand_path('../../../../xion-types/ruby/types', __FILE__)
+$LOAD_PATH.unshift(xion_types_path) if File.directory?(xion_types_path)
 
 # Then require the protobuf files
 require 'cosmos/base/v1beta1/coin_pb'
 require 'cosmos/bank/v1beta1/tx_pb'
 require 'cosmos/bank/v1beta1/query_pb'
+```
+
+For production, xion-types should be installed as a gem:
+```bash
+gem install xion-types  # Future: when published
 ```
 
 ## Additional Resources
