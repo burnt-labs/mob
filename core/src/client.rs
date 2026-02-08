@@ -58,7 +58,9 @@ impl Client {
     pub fn attach_signer(&self, _signer: Arc<Signer>) -> Result<()> {
         // This method is exported for FFI but we can't mutate through UniFFI
         // For now, return an error - this needs a different architecture
-        Err(MobError::Generic("attach_signer not yet implemented for FFI".to_string()))
+        Err(MobError::Generic(
+            "attach_signer not yet implemented for FFI".to_string(),
+        ))
     }
 
     /// Query account information (synchronous wrapper)
@@ -104,6 +106,20 @@ impl Client {
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
         runtime.block_on(self.send_internal(&to_address, amount, memo))
+    }
+
+    /// Query a CosmWasm smart contract (synchronous wrapper)
+    pub fn query_smart_contract(
+        &self,
+        contract_address: String,
+        query_msg: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.query_smart_contract_internal(&contract_address, &query_msg))
     }
 
     /// Execute a CosmWasm contract (synchronous wrapper)
@@ -237,7 +253,7 @@ impl Client {
             .map_err(|e| MobError::Address(format!("Invalid address: {}", e)))?;
 
         // Query account info using ABCI query
-        let query_path = format!("/cosmos.auth.v1beta1.Query/Account");
+        let query_path = "/cosmos.auth.v1beta1.Query/Account".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountRequest {
@@ -247,17 +263,14 @@ impl Client {
         // Encode the request
         use prost::Message;
         let mut buf = Vec::new();
-        query_request.encode(&mut buf)
+        query_request
+            .encode(&mut buf)
             .map_err(|e| MobError::Transaction(format!("Failed to encode account query: {}", e)))?;
 
         // Query via ABCI
-        let response = self.rpc_client
-            .abci_query(
-                Some(query_path),
-                buf,
-                None,
-                false,
-            )
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
             .await
             .map_err(|e| MobError::Network(format!("Account query failed: {}", e)))?;
 
@@ -272,17 +285,20 @@ impl Client {
 
         // Decode the response
         let query_response = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountResponse::decode(
-            response.value.as_slice()
-        ).map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
+            response.value.as_slice(),
+        )
+        .map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
 
         // Extract account info from Any type
-        let account_any = query_response.account
+        let account_any = query_response
+            .account
             .ok_or_else(|| MobError::Account("Account not found".to_string()))?;
 
         // Decode BaseAccount from Any
         let base_account = cosmos_sdk_proto::cosmos::auth::v1beta1::BaseAccount::decode(
-            account_any.value.as_slice()
-        ).map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
+            account_any.value.as_slice(),
+        )
+        .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
 
         Ok(AccountInfo {
             address: address.to_string(),
@@ -295,7 +311,7 @@ impl Client {
     /// Query account balance (internal)
     pub async fn get_balance_internal(&self, address: &str, denom: &str) -> Result<Coin> {
         // Query balance using ABCI query
-        let query_path = format!("/cosmos.bank.v1beta1.Query/Balance");
+        let query_path = "/cosmos.bank.v1beta1.Query/Balance".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceRequest {
@@ -306,17 +322,14 @@ impl Client {
         // Encode the request
         use prost::Message;
         let mut buf = Vec::new();
-        query_request.encode(&mut buf)
+        query_request
+            .encode(&mut buf)
             .map_err(|e| MobError::Transaction(format!("Failed to encode balance query: {}", e)))?;
 
         // Query via ABCI
-        let response = self.rpc_client
-            .abci_query(
-                Some(query_path),
-                buf,
-                None,
-                false,
-            )
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
             .await
             .map_err(|e| MobError::Network(format!("Balance query failed: {}", e)))?;
 
@@ -331,8 +344,9 @@ impl Client {
 
         // Decode the response
         let query_response = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceResponse::decode(
-            response.value.as_slice()
-        ).map_err(|e| MobError::Transaction(format!("Failed to decode balance response: {}", e)))?;
+            response.value.as_slice(),
+        )
+        .map_err(|e| MobError::Transaction(format!("Failed to decode balance response: {}", e)))?;
 
         // Convert to our Coin type
         match query_response.balance {
@@ -344,7 +358,7 @@ impl Client {
     /// Query all balances for an address (internal)
     async fn get_all_balances_internal(&self, address: &str) -> Result<Vec<Coin>> {
         // Query all balances using ABCI query
-        let query_path = format!("/cosmos.bank.v1beta1.Query/AllBalances");
+        let query_path = "/cosmos.bank.v1beta1.Query/AllBalances".to_string();
 
         // Create the query request protobuf
         let query_request = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesRequest {
@@ -356,17 +370,14 @@ impl Client {
         // Encode the request
         use prost::Message;
         let mut buf = Vec::new();
-        query_request.encode(&mut buf)
-            .map_err(|e| MobError::Transaction(format!("Failed to encode all balances query: {}", e)))?;
+        query_request.encode(&mut buf).map_err(|e| {
+            MobError::Transaction(format!("Failed to encode all balances query: {}", e))
+        })?;
 
         // Query via ABCI
-        let response = self.rpc_client
-            .abci_query(
-                Some(query_path),
-                buf,
-                None,
-                false,
-            )
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
             .await
             .map_err(|e| MobError::Network(format!("All balances query failed: {}", e)))?;
 
@@ -380,15 +391,83 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesResponse::decode(
-            response.value.as_slice()
-        ).map_err(|e| MobError::Transaction(format!("Failed to decode all balances response: {}", e)))?;
+        let query_response =
+            cosmos_sdk_proto::cosmos::bank::v1beta1::QueryAllBalancesResponse::decode(
+                response.value.as_slice(),
+            )
+            .map_err(|e| {
+                MobError::Transaction(format!("Failed to decode all balances response: {}", e))
+            })?;
 
         // Convert to our Coin types
-        Ok(query_response.balances
+        Ok(query_response
+            .balances
             .into_iter()
             .map(|coin| Coin::new(&coin.denom, &coin.amount))
             .collect())
+    }
+
+    /// Query a CosmWasm smart contract (internal)
+    async fn query_smart_contract_internal(
+        &self,
+        contract_address: &str,
+        query_msg: &[u8],
+    ) -> Result<Vec<u8>> {
+        // Query smart contract using ABCI query
+        let query_path = "/cosmwasm.wasm.v1.Query/SmartContractState".to_string();
+
+        // Create the query request protobuf
+        use prost::Message;
+
+        // CosmWasm QuerySmartContractStateRequest
+        #[derive(prost::Message)]
+        struct QuerySmartContractStateRequest {
+            #[prost(string, tag = "1")]
+            address: String,
+            #[prost(bytes, tag = "2")]
+            query_data: Vec<u8>,
+        }
+
+        #[derive(prost::Message)]
+        struct QuerySmartContractStateResponse {
+            #[prost(bytes, tag = "1")]
+            data: Vec<u8>,
+        }
+
+        let query_request = QuerySmartContractStateRequest {
+            address: contract_address.to_string(),
+            query_data: query_msg.to_vec(),
+        };
+
+        // Encode the request
+        let mut buf = Vec::new();
+        query_request.encode(&mut buf).map_err(|e| {
+            MobError::Transaction(format!("Failed to encode smart contract query: {}", e))
+        })?;
+
+        // Query via ABCI
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
+            .await
+            .map_err(|e| MobError::Network(format!("Smart contract query failed: {}", e)))?;
+
+        // Check for errors
+        if response.code.is_err() {
+            return Err(MobError::Network(format!(
+                "Smart contract query returned error code {}: {}",
+                response.code.value(),
+                response.log
+            )));
+        }
+
+        // Decode the response
+        let query_response = QuerySmartContractStateResponse::decode(response.value.as_slice())
+            .map_err(|e| {
+                MobError::Transaction(format!("Failed to decode smart contract response: {}", e))
+            })?;
+
+        Ok(query_response.data)
     }
 
     /// Send tokens from the attached signer to a recipient (internal)
@@ -409,18 +488,11 @@ impl Client {
             .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
 
         // Build send message
-        let msg = crate::transaction::messages::msg_send(
-            &signer.address(),
-            to_address,
-            amount.clone(),
-        )?;
+        let msg =
+            crate::transaction::messages::msg_send(&signer.address(), to_address, amount.clone())?;
 
         // Calculate fee
-        let fee = crate::transaction::calculate_fee(
-            200_000,
-            &self.config.gas_price,
-            "uxion",
-        )?;
+        let fee = crate::transaction::calculate_fee(200_000, &self.config.gas_price, "uxion")?;
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
@@ -432,14 +504,12 @@ impl Client {
         }
 
         // Sign transaction
-        let tx_bytes = tx_builder.sign(
-            signer,
-            account.account_number()?,
-            account.sequence()?,
-        )?;
+        let tx_bytes = tx_builder.sign(signer, account.account_number()?, account.sequence()?)?;
 
         // Broadcast transaction
-        let response = self.broadcast_tx_internal(tx_bytes, BroadcastMode::Sync).await?;
+        let response = self
+            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
+            .await?;
 
         Ok(response)
     }
@@ -471,11 +541,7 @@ impl Client {
         )?;
 
         // Calculate fee
-        let fee = crate::transaction::calculate_fee(
-            300_000,
-            &self.config.gas_price,
-            "uxion",
-        )?;
+        let fee = crate::transaction::calculate_fee(1_000_000, &self.config.gas_price, "uxion")?;
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
@@ -487,14 +553,12 @@ impl Client {
         }
 
         // Sign transaction
-        let tx_bytes = tx_builder.sign(
-            signer,
-            account.account_number()?,
-            account.sequence()?,
-        )?;
+        let tx_bytes = tx_builder.sign(signer, account.account_number()?, account.sequence()?)?;
 
         // Broadcast transaction
-        let response = self.broadcast_tx_internal(tx_bytes, BroadcastMode::Sync).await?;
+        let response = self
+            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
+            .await?;
 
         Ok(response)
     }
@@ -508,10 +572,13 @@ impl Client {
         // Use tendermint-rpc to broadcast
         match mode {
             BroadcastMode::Sync => {
-                let result = self.rpc_client
+                let result = self
+                    .rpc_client
                     .broadcast_tx_sync(tx_bytes.clone())
                     .await
-                    .map_err(|e| MobError::Rpc(format!("Failed to broadcast transaction: {}", e)))?;
+                    .map_err(|e| {
+                        MobError::Rpc(format!("Failed to broadcast transaction: {}", e))
+                    })?;
 
                 Ok(TxResponse {
                     txhash: result.hash.to_string(),
@@ -523,10 +590,13 @@ impl Client {
                 })
             }
             BroadcastMode::Async => {
-                let result = self.rpc_client
+                let result = self
+                    .rpc_client
                     .broadcast_tx_async(tx_bytes.clone())
                     .await
-                    .map_err(|e| MobError::Rpc(format!("Failed to broadcast transaction: {}", e)))?;
+                    .map_err(|e| {
+                        MobError::Rpc(format!("Failed to broadcast transaction: {}", e))
+                    })?;
 
                 Ok(TxResponse {
                     txhash: result.hash.to_string(),
@@ -538,10 +608,13 @@ impl Client {
                 })
             }
             BroadcastMode::Block => {
-                let result = self.rpc_client
+                let result = self
+                    .rpc_client
                     .broadcast_tx_commit(tx_bytes)
                     .await
-                    .map_err(|e| MobError::Rpc(format!("Failed to broadcast transaction: {}", e)))?;
+                    .map_err(|e| {
+                        MobError::Rpc(format!("Failed to broadcast transaction: {}", e))
+                    })?;
 
                 Ok(TxResponse {
                     txhash: result.hash.to_string(),
@@ -561,8 +634,9 @@ impl Client {
             .map_err(|e| MobError::Transaction(format!("Invalid transaction hash: {}", e)))?;
 
         // Convert to fixed-size array for tendermint Hash
-        let hash_array: [u8; 32] = hash_bytes.as_slice().try_into()
-            .map_err(|_| MobError::Transaction("Invalid hash length, expected 32 bytes".to_string()))?;
+        let hash_array: [u8; 32] = hash_bytes.as_slice().try_into().map_err(|_| {
+            MobError::Transaction("Invalid hash length, expected 32 bytes".to_string())
+        })?;
 
         let tx_hash = tendermint::Hash::Sha256(hash_array);
 

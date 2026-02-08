@@ -2,10 +2,7 @@ use crate::{
     error::{MobError, Result},
     types::AccountInfo,
 };
-use cosmrs::{
-    proto::cosmos::auth::v1beta1::BaseAccount,
-    AccountId,
-};
+use cosmrs::{proto::cosmos::auth::v1beta1::BaseAccount, AccountId};
 use std::str::FromStr;
 
 /// Account manager for querying and managing account information
@@ -172,7 +169,7 @@ pub mod abstraction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Account, AccountInfo, abstraction::*};
+    use super::{Account, AccountInfo};
 
     #[test]
     fn test_account_creation() {

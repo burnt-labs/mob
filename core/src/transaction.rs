@@ -5,8 +5,8 @@ use crate::{
 };
 use cosmrs::{
     tendermint::chain::Id as ChainId,
-    tx::{self, AccountNumber, Body, BodyBuilder, Fee as CosmosFee, Msg, SequenceNumber, SignDoc},
-    Any, Gas,
+    tx::{self, Body, BodyBuilder, Fee as CosmosFee, Msg, SignDoc},
+    Any,
 };
 use std::str::FromStr;
 
@@ -83,37 +83,30 @@ impl TransactionBuilder {
         }
 
         if self.timeout_height > 0 {
-            body_builder.timeout_height(cosmrs::tendermint::block::Height::try_from(self.timeout_height)
-                .map_err(|e| MobError::Transaction(format!("Invalid timeout height: {}", e)))?);
+            body_builder.timeout_height(
+                cosmrs::tendermint::block::Height::try_from(self.timeout_height)
+                    .map_err(|e| MobError::Transaction(format!("Invalid timeout height: {}", e)))?,
+            );
         }
 
         Ok(body_builder.finish())
     }
 
     /// Build and sign the transaction
-    pub fn sign(
-        &self,
-        signer: &Signer,
-        account_number: u64,
-        sequence: u64,
-    ) -> Result<Vec<u8>> {
+    pub fn sign(&self, signer: &Signer, account_number: u64, sequence: u64) -> Result<Vec<u8>> {
         let body = self.build_body()?;
 
         // Get fee or use default
-        let fee = self.fee.as_ref().ok_or_else(|| {
-            MobError::Transaction("Transaction fee not set".to_string())
-        })?;
+        let fee = self
+            .fee
+            .as_ref()
+            .ok_or_else(|| MobError::Transaction("Transaction fee not set".to_string()))?;
 
         // Create auth info
         let auth_info = self.create_auth_info(signer, fee, sequence)?;
 
         // Create SignDoc
-        let sign_doc = SignDoc::new(
-            &body,
-            &auth_info,
-            &self.chain_id,
-            account_number,
-        )?;
+        let sign_doc = SignDoc::new(&body, &auth_info, &self.chain_id, account_number)?;
 
         // Sign the transaction
         let tx_raw = signer.sign_direct(&sign_doc, account_number)?;
@@ -128,16 +121,14 @@ impl TransactionBuilder {
 
         // Create public key from bytes (33 bytes compressed format)
         let pub_key_bytes = signer.public_key();
-        let verifying_key = cosmrs::crypto::secp256k1::VerifyingKey::from_sec1_bytes(&pub_key_bytes)
-            .map_err(|e| MobError::Transaction(format!("Invalid public key: {}", e)))?;
+        let verifying_key =
+            cosmrs::crypto::secp256k1::VerifyingKey::from_sec1_bytes(&pub_key_bytes)
+                .map_err(|e| MobError::Transaction(format!("Invalid public key: {}", e)))?;
 
         // Convert to cosmrs PublicKey
         let pub_key = cosmrs::crypto::PublicKey::from(verifying_key);
 
-        let signer_info = tx::SignerInfo::single_direct(
-            Some(pub_key),
-            sequence,
-        );
+        let signer_info = tx::SignerInfo::single_direct(Some(pub_key), sequence);
 
         Ok(signer_info.auth_info(cosmos_fee))
     }
@@ -145,18 +136,21 @@ impl TransactionBuilder {
     fn convert_fee(&self, fee: &Fee) -> Result<CosmosFee> {
         let mut coins = Vec::new();
         for c in &fee.amount {
-            let denom = c.denom.parse()
+            let denom = c
+                .denom
+                .parse()
                 .map_err(|e| MobError::Transaction(format!("Invalid fee denom: {}", e)))?;
-            let amount = c.amount.parse()
+            let amount = c
+                .amount
+                .parse()
                 .map_err(|e| MobError::Transaction(format!("Invalid fee amount: {}", e)))?;
             coins.push(cosmrs::Coin { denom, amount });
         }
 
-        let first_coin = coins.first().ok_or(MobError::Transaction("No fee coins".to_string()))?;
-        let fee_builder = CosmosFee::from_amount_and_gas(
-            first_coin.clone(),
-            fee.gas_limit,
-        );
+        let first_coin = coins
+            .first()
+            .ok_or(MobError::Transaction("No fee coins".to_string()))?;
+        let fee_builder = CosmosFee::from_amount_and_gas(first_coin.clone(), fee.gas_limit);
 
         Ok(fee_builder)
     }
@@ -178,21 +172,14 @@ pub mod messages {
     use cosmrs::{bank::MsgSend, cosmwasm::MsgExecuteContract, AccountId, Coin as CosmosCoin};
 
     /// Build a MsgSend for token transfer
-    pub fn msg_send(
-        from_address: &str,
-        to_address: &str,
-        amount: Vec<Coin>,
-    ) -> Result<Any> {
+    pub fn msg_send(from_address: &str, to_address: &str, amount: Vec<Coin>) -> Result<Any> {
         let from = AccountId::from_str(from_address)
             .map_err(|e| MobError::Transaction(format!("Invalid from address: {}", e)))?;
 
         let to = AccountId::from_str(to_address)
             .map_err(|e| MobError::Transaction(format!("Invalid to address: {}", e)))?;
 
-        let coins: Vec<CosmosCoin> = amount
-            .into_iter()
-            .map(|c| c.into())
-            .collect();
+        let coins: Vec<CosmosCoin> = amount.into_iter().map(|c| c.into()).collect();
 
         let msg = MsgSend {
             from_address: from,
@@ -217,10 +204,7 @@ pub mod messages {
         let contract_addr = AccountId::from_str(contract)
             .map_err(|e| MobError::Transaction(format!("Invalid contract address: {}", e)))?;
 
-        let coins: Vec<CosmosCoin> = funds
-            .into_iter()
-            .map(|c| c.into())
-            .collect();
+        let coins: Vec<CosmosCoin> = funds.into_iter().map(|c| c.into()).collect();
 
         let msg = MsgExecuteContract {
             sender: sender_addr,
@@ -229,8 +213,9 @@ pub mod messages {
             funds: coins,
         };
 
-        msg.to_any()
-            .map_err(|e| MobError::Transaction(format!("Failed to create MsgExecuteContract: {}", e)))
+        msg.to_any().map_err(|e| {
+            MobError::Transaction(format!("Failed to create MsgExecuteContract: {}", e))
+        })
     }
 }
 
@@ -260,10 +245,7 @@ pub mod response {
 /// Simulate a transaction to estimate gas
 /// Only available with "rpc-client" feature (default)
 #[cfg(feature = "rpc-client")]
-pub async fn simulate_transaction(
-    grpc_endpoint: &str,
-    tx_bytes: Vec<u8>,
-) -> Result<u64> {
+pub async fn simulate_transaction(grpc_endpoint: &str, tx_bytes: Vec<u8>) -> Result<u64> {
     use cosmos_sdk_proto::cosmos::tx::v1beta1::{
         service_client::ServiceClient, SimulateRequest, TxRaw,
     };
@@ -327,21 +309,16 @@ pub fn calculate_fee(gas_limit: u64, gas_price: &str, denom: &str) -> Result<Fee
 
 #[cfg(test)]
 mod tests {
-    use super::{TransactionBuilder, calculate_fee};
+    use super::{calculate_fee, TransactionBuilder};
     use crate::types::{BroadcastMode, Coin, Fee};
 
     #[test]
     fn test_transaction_builder() {
         let mut builder = TransactionBuilder::new("test-chain-1").unwrap();
 
-        let fee = Fee::new(
-            vec![Coin::new("uxion", "1000")],
-            200_000,
-        );
+        let fee = Fee::new(vec![Coin::new("uxion", "1000")], 200_000);
 
-        builder
-            .with_fee(fee)
-            .with_memo("test transaction");
+        builder.with_fee(fee).with_memo("test transaction");
 
         assert_eq!(builder.message_count(), 0);
         assert_eq!(builder.memo, "test transaction");
