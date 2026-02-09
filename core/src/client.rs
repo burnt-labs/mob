@@ -451,8 +451,12 @@ impl Client {
         let msg =
             crate::transaction::messages::msg_send(&signer.address(), to_address, amount.clone())?;
 
+        // Estimate gas via simulation
+        let estimated_gas = self.estimate_gas(msg.clone(), memo.as_deref()).await?;
+
         // Calculate fee
-        let fee = crate::transaction::calculate_fee(200_000, &self.config.gas_price, "uxion")?;
+        let fee =
+            crate::transaction::calculate_fee(estimated_gas, &self.config.gas_price, "uxion")?;
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
@@ -510,12 +514,17 @@ impl Client {
             funds,
         )?;
 
+        // Determine gas limit: use provided value, or simulate to estimate
+        let resolved_gas = match gas_limit {
+            Some(limit) => limit,
+            None => {
+                self.estimate_gas(execute_msg.clone(), memo.as_deref())
+                    .await?
+            }
+        };
+
         // Calculate fee
-        let fee = crate::transaction::calculate_fee(
-            gas_limit.unwrap_or(300_000),
-            &self.config.gas_price,
-            "uxion",
-        )?;
+        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
@@ -544,6 +553,88 @@ impl Client {
         }
 
         Ok(response)
+    }
+
+    /// Simulate a signed transaction to estimate gas usage.
+    /// Returns the estimated gas_used from the simulation.
+    async fn simulate_tx(&self, tx_bytes: Vec<u8>) -> Result<u64> {
+        use prost::Message;
+
+        #[allow(deprecated)]
+        let request = xion_types::cosmos::tx::v1beta1::SimulateRequest { tx: None, tx_bytes };
+
+        let mut buf = Vec::new();
+        request.encode(&mut buf).map_err(|e| {
+            MobError::Transaction(format!("Failed to encode simulate request: {}", e))
+        })?;
+
+        let response = self
+            .rpc_client
+            .abci_query(
+                Some("/cosmos.tx.v1beta1.Service/Simulate".to_string()),
+                buf,
+                None,
+                false,
+            )
+            .await
+            .map_err(|e| MobError::Network(format!("Simulate query failed: {}", e)))?;
+
+        if response.code.is_err() {
+            return Err(MobError::Transaction(format!(
+                "Simulation failed (code {}): {}",
+                response.code.value(),
+                response.log
+            )));
+        }
+
+        let sim_response =
+            xion_types::cosmos::tx::v1beta1::SimulateResponse::decode(response.value.as_slice())
+                .map_err(|e| {
+                    MobError::Transaction(format!("Failed to decode simulate response: {}", e))
+                })?;
+
+        let gas_used = sim_response
+            .gas_info
+            .ok_or_else(|| MobError::Transaction("No gas info in simulate response".to_string()))?
+            .gas_used;
+
+        Ok(gas_used)
+    }
+
+    /// Estimate gas for a transaction by simulating it with a zero fee,
+    /// then applying a multiplier (1.4x) for safety margin.
+    async fn estimate_gas(&self, message: cosmrs::Any, memo: Option<&str>) -> Result<u64> {
+        let signer = self
+            .signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+
+        let account = self
+            .account
+            .as_ref()
+            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+
+        // Build tx with zero fee for simulation
+        let zero_fee = crate::transaction::calculate_fee(0, "0", "uxion")?;
+
+        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
+        tx_builder.add_message(message);
+        tx_builder.with_fee(zero_fee);
+
+        if let Some(m) = memo {
+            tx_builder.with_memo(m);
+        }
+
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
+
+        let gas_used = self.simulate_tx(tx_bytes).await?;
+
+        // Apply 1.4x multiplier for safety margin
+        Ok((gas_used as f64 * 1.4) as u64)
     }
 
     /// Broadcast a signed transaction (internal)

@@ -297,22 +297,6 @@ pub mod response {
     }
 }
 
-/// NOTE: Temporarily disabled - xion-types does not include gRPC service clients
-/// TODO: Re-enable when xion-types provides gRPC service definitions
-#[cfg(all(feature = "rpc-client", any()))] // Effectively disabled - 'any()' is always false
-#[allow(dead_code)]
-pub async fn simulate_transaction(_grpc_endpoint: &str, _tx_bytes: Vec<u8>) -> Result<u64> {
-    Err(MobError::Generic("simulate_transaction is temporarily disabled - xion-types does not include gRPC service clients".to_string()))
-}
-
-/// Returns a conservative default estimate when RPC client is not available
-#[cfg(not(feature = "rpc-client"))]
-pub fn simulate_transaction(_grpc_endpoint: &str, _tx_bytes: Vec<u8>) -> Result<u64> {
-    // Conservative default gas estimate for WASM environments
-    // gRPC simulation is not available without the rpc-client feature
-    Ok(200_000)
-}
-
 /// Calculate fee from gas limit and gas price
 pub fn calculate_fee(gas_limit: u64, gas_price: &str, denom: &str) -> Result<Fee> {
     let price: f64 = gas_price
