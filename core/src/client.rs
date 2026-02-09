@@ -475,6 +475,11 @@ impl Client {
             .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
             .await?;
 
+        // Increment cached sequence after successful broadcast
+        if let Some(acc) = &self.account {
+            acc.increment_sequence();
+        }
+
         Ok(response)
     }
 
@@ -532,6 +537,11 @@ impl Client {
         let response = self
             .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
             .await?;
+
+        // Increment cached sequence after successful broadcast
+        if let Some(acc) = &self.account {
+            acc.increment_sequence();
+        }
 
         Ok(response)
     }
