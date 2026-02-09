@@ -92,13 +92,20 @@ impl Client {
         msg: Vec<u8>,
         funds: Vec<Coin>,
         memo: Option<String>,
+        gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
-        runtime.block_on(self.execute_contract_internal(&contract_address, &msg, funds, memo))
+        runtime.block_on(self.execute_contract_internal(
+            &contract_address,
+            &msg,
+            funds,
+            memo,
+            gas_limit,
+        ))
     }
 
     /// Query transaction by hash (synchronous wrapper)
@@ -478,6 +485,7 @@ impl Client {
         msg: &[u8],
         funds: Vec<Coin>,
         memo: Option<String>,
+        gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
         let signer = self
             .signer
@@ -498,7 +506,11 @@ impl Client {
         )?;
 
         // Calculate fee
-        let fee = crate::transaction::calculate_fee(300_000, &self.config.gas_price, "uxion")?;
+        let fee = crate::transaction::calculate_fee(
+            gas_limit.unwrap_or(300_000),
+            &self.config.gas_price,
+            "uxion",
+        )?;
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;

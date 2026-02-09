@@ -33,9 +33,8 @@ wasm = []
 # UniFFI - optional, only for native FFI bindings
 uniffi = { version = "0.30", features = ["cli"], optional = true }
 
-# Cosmos SDK - always needed for types
-xion-types = { path = "/tmp/xion-types-eval/rust" }
 # cosmrs - make rpc and grpc optional
+xion-types = { git = "https://github.com/burnt-labs/xion-types", features = ["xion"]}
 cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
 tendermint = "0.37"
 # tendermint-rpc - optional for WASM

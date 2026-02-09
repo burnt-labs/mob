@@ -47,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         msg_bytes,
         funds,
         Some("Execute contract".to_string()),
+        None,
     ) {
         Ok(response) => {
             println!("\n✅ Contract execution successful!");
