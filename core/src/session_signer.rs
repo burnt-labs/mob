@@ -507,4 +507,401 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("expired"));
     }
+
+    #[test]
+    fn test_with_signer_trait_object() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let granter = "xion1granter".to_string();
+        let grantee = signer.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee.clone(), 3600);
+
+        let trait_signer: Arc<dyn CryptoSigner> = Arc::new(signer);
+        let session = SessionSigner::with_signer(trait_signer, metadata)
+            .expect("Failed to create session signer");
+
+        assert_eq!(session.granter_address(), granter);
+        assert_eq!(session.grantee_address(), grantee);
+    }
+
+    #[test]
+    fn test_with_signer_rejects_expired() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let metadata = SessionMetadata::new(
+            "xion1granter".to_string(),
+            signer.address(),
+            0, // already expired
+        );
+
+        let trait_signer: Arc<dyn CryptoSigner> = Arc::new(signer);
+        let result = SessionSigner::with_signer(trait_signer, metadata);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("expired"));
+    }
+
+    #[test]
+    fn test_wrap_multiple_messages() {
+        use crate::transaction::messages;
+        use crate::types::Coin;
+
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let recipient = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let amount = vec![Coin::new("uxion", "1000")];
+        let msgs: Vec<cosmrs::Any> = (0..3)
+            .map(|_| {
+                messages::msg_send(&granter, &recipient.address(), amount.clone())
+                    .expect("Failed to create MsgSend")
+            })
+            .collect();
+
+        let wrapped = session_signer
+            .wrap_in_msg_exec(msgs)
+            .expect("Failed to wrap messages");
+
+        use prost::Message;
+        use xion_types::cosmos::authz::v1beta1::MsgExec;
+
+        let decoded = MsgExec::decode(wrapped.value.as_slice()).expect("Failed to decode MsgExec");
+        assert_eq!(decoded.msgs.len(), 3);
+        for msg in &decoded.msgs {
+            assert_eq!(msg.type_url, "/cosmos.bank.v1beta1.MsgSend");
+        }
+    }
+
+    #[test]
+    fn test_wrap_empty_messages() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let granter = "xion1granter".to_string();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter, grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let wrapped = session_signer
+            .wrap_in_msg_exec(vec![])
+            .expect("Failed to wrap empty messages");
+
+        assert_eq!(wrapped.type_url, "/cosmos.authz.v1beta1.MsgExec");
+
+        use prost::Message;
+        use xion_types::cosmos::authz::v1beta1::MsgExec;
+
+        let decoded = MsgExec::decode(wrapped.value.as_slice()).expect("Failed to decode");
+        assert_eq!(decoded.msgs.len(), 0);
+    }
+
+    #[test]
+    fn test_metadata_accessors() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let granter = "xion1granter".to_string();
+        let grantee = session_key.address();
+        let pub_key = session_key.public_key();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee.clone(), 7200);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        assert_eq!(session_signer.granter_address(), granter);
+        assert_eq!(session_signer.grantee_address(), grantee);
+        assert!(!session_signer.is_expired());
+        assert!(session_signer.remaining_seconds() > 7100);
+        assert!(session_signer.remaining_seconds() <= 7200);
+
+        let hex_key = session_signer.public_key_hex();
+        assert_eq!(hex_key, hex::encode(&pub_key));
+        assert_eq!(hex_key.len(), 66); // 33 bytes * 2
+
+        let meta = session_signer.metadata();
+        assert_eq!(meta.granter, granter);
+        assert_eq!(meta.grantee, grantee);
+    }
+
+    #[test]
+    fn test_sign_transaction_no_memo() {
+        use crate::transaction::messages;
+        use crate::types::{Coin, Fee};
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use std::str::FromStr;
+
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let recipient = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let amount = vec![Coin::new("uxion", "1000000")];
+        let msg_send = messages::msg_send(&granter, &recipient.address(), amount)
+            .expect("Failed to create MsgSend");
+
+        let fee = Fee::new(vec![Coin::new("uxion", "5000")], 200_000);
+        let chain_id = ChainId::from_str("xion-testnet-1").expect("Invalid chain ID");
+
+        let tx_bytes = session_signer
+            .sign_transaction(vec![msg_send], &fee, &chain_id, 123, 0, None)
+            .expect("Failed to sign transaction");
+
+        use prost::Message;
+        use xion_types::cosmos::tx::v1beta1::{TxBody, TxRaw};
+
+        let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
+        let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
+        assert_eq!(tx_body.memo, "");
+    }
+
+    #[test]
+    fn test_sign_transaction_signature_format() {
+        use crate::transaction::messages;
+        use crate::types::{Coin, Fee};
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use std::str::FromStr;
+
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let recipient = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let amount = vec![Coin::new("uxion", "500")];
+        let msg = messages::msg_send(&granter, &recipient.address(), amount)
+            .expect("Failed to create MsgSend");
+
+        let fee = Fee::new(vec![Coin::new("uxion", "1000")], 100_000);
+        let chain_id = ChainId::from_str("xion-testnet-1").expect("Invalid chain ID");
+
+        let tx_bytes = session_signer
+            .sign_transaction(
+                vec![msg],
+                &fee,
+                &chain_id,
+                42,
+                7,
+                Some("sig test".to_string()),
+            )
+            .expect("Failed to sign transaction");
+
+        use prost::Message;
+        use xion_types::cosmos::tx::v1beta1::TxRaw;
+
+        let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
+        assert_eq!(tx_raw.signatures.len(), 1);
+        assert_eq!(tx_raw.signatures[0].len(), 64);
+    }
+
+    #[test]
+    fn test_convert_fee_no_coins() {
+        use crate::transaction::messages;
+        use crate::types::Fee;
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use std::str::FromStr;
+
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let recipient = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let msg = messages::msg_send(
+            &granter,
+            &recipient.address(),
+            vec![crate::types::Coin::new("uxion", "100")],
+        )
+        .expect("Failed to create MsgSend");
+
+        // Fee with empty coin vec
+        let fee = Fee::new(vec![], 200_000);
+        let chain_id = ChainId::from_str("xion-testnet-1").expect("Invalid chain ID");
+
+        let result = session_signer.sign_transaction(vec![msg], &fee, &chain_id, 1, 0, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No fee coins"));
+    }
+
+    #[test]
+    fn test_sign_transaction_multiple_messages() {
+        use crate::transaction::messages;
+        use crate::types::{Coin, Fee};
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use std::str::FromStr;
+
+        let granter_mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna put fitness slide dash point basket jaguar fun humor multiply emotion rescue brand pull";
+        let granter_signer =
+            RustSigner::from_mnemonic(granter_mnemonic.to_string(), "xion".to_string(), None)
+                .expect("Failed to create granter signer");
+
+        let session_mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create session key");
+
+        let recipient = RustSigner::from_mnemonic(
+            session_mnemonic.to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/2".to_string()),
+        )
+        .expect("Failed to create recipient");
+
+        let granter = granter_signer.address();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let amount = vec![Coin::new("uxion", "1000")];
+        let msg1 = messages::msg_send(&granter, &recipient.address(), amount.clone())
+            .expect("Failed to create MsgSend 1");
+        let msg2 = messages::msg_send(&granter, &recipient.address(), amount)
+            .expect("Failed to create MsgSend 2");
+
+        let fee = Fee::new(vec![Coin::new("uxion", "10000")], 400_000);
+        let chain_id = ChainId::from_str("xion-testnet-1").expect("Invalid chain ID");
+
+        let tx_bytes = session_signer
+            .sign_transaction(vec![msg1, msg2], &fee, &chain_id, 10, 3, None)
+            .expect("Failed to sign transaction");
+
+        use prost::Message;
+        use xion_types::cosmos::authz::v1beta1::MsgExec;
+        use xion_types::cosmos::tx::v1beta1::{TxBody, TxRaw};
+
+        let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
+        let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
+
+        // Body should contain a single MsgExec
+        assert_eq!(tx_body.messages.len(), 1);
+        assert_eq!(
+            tx_body.messages[0].type_url,
+            "/cosmos.authz.v1beta1.MsgExec"
+        );
+
+        // The MsgExec should contain 2 inner messages
+        let msg_exec = MsgExec::decode(tx_body.messages[0].value.as_slice())
+            .expect("Failed to decode MsgExec");
+        assert_eq!(msg_exec.msgs.len(), 2);
+        assert_eq!(msg_exec.msgs[0].type_url, "/cosmos.bank.v1beta1.MsgSend");
+        assert_eq!(msg_exec.msgs[1].type_url, "/cosmos.bank.v1beta1.MsgSend");
+    }
+
+    #[test]
+    fn test_debug_format() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let session_key = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None)
+            .expect("Failed to create signer");
+
+        let granter = "xion1granter".to_string();
+        let grantee = session_key.address();
+        let metadata = SessionMetadata::with_duration(granter.clone(), grantee, 3600);
+        let expires_at = metadata.expires_at;
+
+        let session_signer = SessionSigner::new(Arc::new(session_key), metadata)
+            .expect("Failed to create session signer");
+
+        let debug_str = format!("{:?}", session_signer);
+        assert!(debug_str.contains("SessionSigner"));
+        assert!(debug_str.contains("xion1granter"));
+        assert!(debug_str.contains(&expires_at.to_string()));
+    }
 }

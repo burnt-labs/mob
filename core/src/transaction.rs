@@ -343,4 +343,141 @@ mod tests {
         let _mode = BroadcastMode::Async;
         let _mode = BroadcastMode::Block;
     }
+
+    #[test]
+    fn test_calculate_fee_zero_gas() {
+        let fee = calculate_fee(0, "0.025", "uxion").unwrap();
+        assert_eq!(fee.gas_limit, 0);
+        assert_eq!(fee.amount[0].amount, "0");
+        assert_eq!(fee.amount[0].denom, "uxion");
+    }
+
+    #[test]
+    fn test_calculate_fee_zero_price() {
+        let fee = calculate_fee(200_000, "0", "uxion").unwrap();
+        assert_eq!(fee.gas_limit, 200_000);
+        assert_eq!(fee.amount[0].amount, "0");
+    }
+
+    #[test]
+    fn test_calculate_fee_ceiling() {
+        // 1 * 0.1 = 0.1, ceil(0.1) = 1
+        let fee = calculate_fee(1, "0.1", "uxion").unwrap();
+        assert_eq!(fee.amount[0].amount, "1");
+    }
+
+    #[test]
+    fn test_calculate_fee_large_gas() {
+        // 10_000_000 * 0.025 = 250_000
+        let fee = calculate_fee(10_000_000, "0.025", "uxion").unwrap();
+        assert_eq!(fee.gas_limit, 10_000_000);
+        assert_eq!(fee.amount[0].amount, "250000");
+    }
+
+    #[test]
+    fn test_calculate_fee_invalid_price() {
+        let result = calculate_fee(200_000, "not_a_number", "uxion");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid gas price"));
+    }
+
+    #[test]
+    fn test_calculate_fee_custom_denom() {
+        let fee = calculate_fee(100_000, "0.01", "uatom").unwrap();
+        assert_eq!(fee.amount[0].denom, "uatom");
+        assert_eq!(fee.amount[0].amount, "1000");
+    }
+
+    #[test]
+    fn test_calculate_fee_high_precision_price() {
+        // 100 * 0.001 = 0.1, ceil(0.1) = 1
+        let fee = calculate_fee(100, "0.001", "uxion").unwrap();
+        assert_eq!(fee.amount[0].amount, "1");
+    }
+
+    #[test]
+    fn test_zero_fee_for_simulation() {
+        use crate::rust_signer::RustSigner;
+
+        // This replicates the pattern used by Client::estimate_gas
+        let zero_fee = calculate_fee(0, "0", "uxion").unwrap();
+        assert_eq!(zero_fee.gas_limit, 0);
+        assert_eq!(zero_fee.amount[0].amount, "0");
+
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let signer =
+            RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+
+        // Build a message
+        let amount = vec![Coin::new("uxion", "1000")];
+        let msg = super::messages::msg_send(
+            &signer.address(),
+            &signer.address(), // self-send for test
+            amount,
+        )
+        .unwrap();
+
+        let mut builder = TransactionBuilder::new("xion-testnet-1").unwrap();
+        builder.add_message(msg);
+        builder.with_fee(zero_fee);
+
+        // Sign should succeed with zero fee (simulation pattern)
+        let tx_bytes = builder.sign(&signer, 0, 0).unwrap();
+        assert!(!tx_bytes.is_empty());
+    }
+
+    #[test]
+    fn test_gas_multiplier_arithmetic() {
+        // Validates the 1.4x multiplier used in Client::estimate_gas
+        let cases: Vec<(u64, u64)> = vec![
+            (100_000, 140_000),
+            (1, 1),
+            (0, 0),
+            (71_429, 100_000),
+            (500_000, 700_000),
+        ];
+
+        for (gas_used, expected) in cases {
+            let result = (gas_used as f64 * 1.4) as u64;
+            assert_eq!(
+                result, expected,
+                "1.4 * {} should be {}",
+                gas_used, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_transaction_builder_no_messages() {
+        let builder = TransactionBuilder::new("test-chain-1").unwrap();
+        let result = builder.build_body();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("at least one message"));
+    }
+
+    #[test]
+    fn test_transaction_builder_no_fee() {
+        use crate::rust_signer::RustSigner;
+
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        let signer =
+            RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
+
+        let amount = vec![Coin::new("uxion", "1000")];
+        let msg = super::messages::msg_send(&signer.address(), &signer.address(), amount).unwrap();
+
+        let mut builder = TransactionBuilder::new("test-chain-1").unwrap();
+        builder.add_message(msg);
+        // Do not set fee
+
+        let result = builder.sign(&signer, 0, 0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("fee not set"));
+    }
 }
