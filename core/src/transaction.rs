@@ -224,7 +224,11 @@ impl TransactionBuilder {
 /// Common transaction message builders
 pub mod messages {
     use super::*;
-    use cosmrs::{bank::MsgSend, cosmwasm::MsgExecuteContract, AccountId, Coin as CosmosCoin};
+    use cosmrs::{
+        bank::MsgSend,
+        cosmwasm::{MsgExecuteContract, MsgInstantiateContract, MsgStoreCode},
+        AccountId, Coin as CosmosCoin,
+    };
 
     /// Build a MsgSend for token transfer
     pub fn msg_send(from_address: &str, to_address: &str, amount: Vec<Coin>) -> Result<Any> {
@@ -270,6 +274,56 @@ pub mod messages {
 
         msg.to_any().map_err(|e| {
             MobError::Transaction(format!("Failed to create MsgExecuteContract: {}", e))
+        })
+    }
+
+    /// Build a MsgStoreCode for uploading a CosmWasm contract
+    pub fn msg_store_code(sender: &str, wasm_byte_code: Vec<u8>) -> Result<Any> {
+        let sender_addr = AccountId::from_str(sender)
+            .map_err(|e| MobError::Transaction(format!("Invalid sender address: {}", e)))?;
+
+        let msg = MsgStoreCode {
+            sender: sender_addr,
+            wasm_byte_code,
+            instantiate_permission: None,
+        };
+
+        msg.to_any()
+            .map_err(|e| MobError::Transaction(format!("Failed to create MsgStoreCode: {}", e)))
+    }
+
+    /// Build a MsgInstantiateContract for instantiating an uploaded CosmWasm contract
+    pub fn msg_instantiate_contract(
+        sender: &str,
+        admin: Option<&str>,
+        code_id: u64,
+        label: Option<&str>,
+        msg: &[u8],
+        funds: Vec<Coin>,
+    ) -> Result<Any> {
+        let sender_addr = AccountId::from_str(sender)
+            .map_err(|e| MobError::Transaction(format!("Invalid sender address: {}", e)))?;
+
+        let admin_addr = admin
+            .map(|a| {
+                AccountId::from_str(a)
+                    .map_err(|e| MobError::Transaction(format!("Invalid admin address: {}", e)))
+            })
+            .transpose()?;
+
+        let coins: Vec<CosmosCoin> = funds.into_iter().map(|c| c.into()).collect();
+
+        let instantiate_msg = MsgInstantiateContract {
+            sender: sender_addr,
+            admin: admin_addr,
+            code_id,
+            label: label.map(|l| l.to_string()),
+            msg: msg.to_vec(),
+            funds: coins,
+        };
+
+        instantiate_msg.to_any().map_err(|e| {
+            MobError::Transaction(format!("Failed to create MsgInstantiateContract: {}", e))
         })
     }
 }

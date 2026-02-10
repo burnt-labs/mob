@@ -108,6 +108,49 @@ impl Client {
         ))
     }
 
+    /// Store a CosmWasm contract (synchronous wrapper)
+    pub fn store_code(
+        &self,
+        wasm_byte_code: Vec<u8>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.store_code_internal(wasm_byte_code, memo, gas_limit))
+    }
+
+    /// Instantiate an uploaded CosmWasm contract (synchronous wrapper)
+    #[allow(clippy::too_many_arguments)]
+    pub fn instantiate_contract(
+        &self,
+        admin: Option<String>,
+        code_id: u64,
+        label: Option<String>,
+        msg: Vec<u8>,
+        funds: Vec<Coin>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.instantiate_contract_internal(
+            admin.as_deref(),
+            code_id,
+            label.as_deref(),
+            &msg,
+            funds,
+            memo,
+            gas_limit,
+        ))
+    }
+
     /// Query transaction by hash (synchronous wrapper)
     pub fn get_tx(&self, hash: String) -> Result<TxResponse> {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -548,6 +591,127 @@ impl Client {
             .await?;
 
         // Increment cached sequence after successful broadcast
+        if let Some(acc) = &self.account {
+            acc.increment_sequence();
+        }
+
+        Ok(response)
+    }
+
+    /// Store a CosmWasm contract (internal)
+    async fn store_code_internal(
+        &self,
+        wasm_byte_code: Vec<u8>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let signer = self
+            .signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+
+        let account = self
+            .account
+            .as_ref()
+            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+
+        let store_msg =
+            crate::transaction::messages::msg_store_code(&signer.address(), wasm_byte_code)?;
+
+        let resolved_gas = match gas_limit {
+            Some(limit) => limit,
+            None => {
+                self.estimate_gas(store_msg.clone(), memo.as_deref())
+                    .await?
+            }
+        };
+
+        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
+
+        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
+        tx_builder.add_message(store_msg);
+        tx_builder.with_fee(fee);
+
+        if let Some(memo_text) = memo {
+            tx_builder.with_memo(memo_text);
+        }
+
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
+
+        let response = self
+            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
+            .await?;
+
+        if let Some(acc) = &self.account {
+            acc.increment_sequence();
+        }
+
+        Ok(response)
+    }
+
+    /// Instantiate an uploaded CosmWasm contract (internal)
+    #[allow(clippy::too_many_arguments)]
+    async fn instantiate_contract_internal(
+        &self,
+        admin: Option<&str>,
+        code_id: u64,
+        label: Option<&str>,
+        msg: &[u8],
+        funds: Vec<Coin>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let signer = self
+            .signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+
+        let account = self
+            .account
+            .as_ref()
+            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+
+        let instantiate_msg = crate::transaction::messages::msg_instantiate_contract(
+            &signer.address(),
+            admin,
+            code_id,
+            label,
+            msg,
+            funds,
+        )?;
+
+        let resolved_gas = match gas_limit {
+            Some(limit) => limit,
+            None => {
+                self.estimate_gas(instantiate_msg.clone(), memo.as_deref())
+                    .await?
+            }
+        };
+
+        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
+
+        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
+        tx_builder.add_message(instantiate_msg);
+        tx_builder.with_fee(fee);
+
+        if let Some(memo_text) = memo {
+            tx_builder.with_memo(memo_text);
+        }
+
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
+
+        let response = self
+            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
+            .await?;
+
         if let Some(acc) = &self.account {
             acc.increment_sequence();
         }
