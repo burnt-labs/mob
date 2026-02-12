@@ -192,6 +192,26 @@ impl Client {
     }
 }
 
+// Public API for multi-message transactions (not exposed via UniFFI)
+#[cfg(feature = "rpc-client")]
+impl Client {
+    /// Sign and broadcast a transaction with multiple pre-built messages (synchronous wrapper).
+    /// Use `mob::messages::msg_execute_contract` etc. to build `cosmrs::Any` messages.
+    pub fn sign_and_broadcast(
+        &self,
+        messages: Vec<cosmrs::Any>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.sign_and_broadcast_messages(messages, memo, gas_limit))
+    }
+}
+
 // RustSigner-specific FFI constructors (only with rust-signer feature)
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 #[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
@@ -480,54 +500,15 @@ impl Client {
         amount: Vec<Coin>,
         memo: Option<String>,
     ) -> Result<TxResponse> {
-        let signer = self
+        let sender = self
             .signer
             .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .address();
 
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
-
-        // Build send message
-        let msg =
-            crate::transaction::messages::msg_send(&signer.address(), to_address, amount.clone())?;
-
-        // Estimate gas via simulation
-        let estimated_gas = self.estimate_gas(msg.clone(), memo.as_deref()).await?;
-
-        // Calculate fee
-        let fee =
-            crate::transaction::calculate_fee(estimated_gas, &self.config.gas_price, "uxion")?;
-
-        // Build transaction
-        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(msg);
-        tx_builder.with_fee(fee);
-
-        if let Some(memo_text) = memo {
-            tx_builder.with_memo(memo_text);
-        }
-
-        // Sign transaction
-        let tx_bytes = tx_builder.sign(
-            signer.as_ref(),
-            account.account_number()?,
-            account.sequence()?,
-        )?;
-
-        // Broadcast transaction
-        let response = self
-            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
-            .await?;
-
-        // Increment cached sequence after successful broadcast
-        if let Some(acc) = &self.account {
-            acc.increment_sequence();
-        }
-
-        Ok(response)
+        let msg = crate::transaction::messages::msg_send(&sender, to_address, amount)?;
+        self.sign_and_broadcast_messages(vec![msg], memo, None)
+            .await
     }
 
     /// Execute a CosmWasm contract (internal)
@@ -539,63 +520,21 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let signer = self
+        let sender = self
             .signer
             .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .address();
 
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
-
-        // Build execute contract message
         let execute_msg = crate::transaction::messages::msg_execute_contract(
-            &signer.address(),
+            &sender,
             contract_address,
             msg,
             funds,
         )?;
 
-        // Determine gas limit: use provided value, or simulate to estimate
-        let resolved_gas = match gas_limit {
-            Some(limit) => limit,
-            None => {
-                self.estimate_gas(execute_msg.clone(), memo.as_deref())
-                    .await?
-            }
-        };
-
-        // Calculate fee
-        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
-
-        // Build transaction
-        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(execute_msg);
-        tx_builder.with_fee(fee);
-
-        if let Some(memo_text) = memo {
-            tx_builder.with_memo(memo_text);
-        }
-
-        // Sign transaction
-        let tx_bytes = tx_builder.sign(
-            signer.as_ref(),
-            account.account_number()?,
-            account.sequence()?,
-        )?;
-
-        // Broadcast transaction
-        let response = self
-            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
-            .await?;
-
-        // Increment cached sequence after successful broadcast
-        if let Some(acc) = &self.account {
-            acc.increment_sequence();
-        }
-
-        Ok(response)
+        self.sign_and_broadcast_messages(vec![execute_msg], memo, gas_limit)
+            .await
     }
 
     /// Store a CosmWasm contract (internal)
@@ -605,52 +544,15 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let signer = self
+        let sender = self
             .signer
             .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .address();
 
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
-
-        let store_msg =
-            crate::transaction::messages::msg_store_code(&signer.address(), wasm_byte_code)?;
-
-        let resolved_gas = match gas_limit {
-            Some(limit) => limit,
-            None => {
-                self.estimate_gas(store_msg.clone(), memo.as_deref())
-                    .await?
-            }
-        };
-
-        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
-
-        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(store_msg);
-        tx_builder.with_fee(fee);
-
-        if let Some(memo_text) = memo {
-            tx_builder.with_memo(memo_text);
-        }
-
-        let tx_bytes = tx_builder.sign(
-            signer.as_ref(),
-            account.account_number()?,
-            account.sequence()?,
-        )?;
-
-        let response = self
-            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
-            .await?;
-
-        if let Some(acc) = &self.account {
-            acc.increment_sequence();
-        }
-
-        Ok(response)
+        let store_msg = crate::transaction::messages::msg_store_code(&sender, wasm_byte_code)?;
+        self.sign_and_broadcast_messages(vec![store_msg], memo, gas_limit)
+            .await
     }
 
     /// Instantiate an uploaded CosmWasm contract (internal)
@@ -665,58 +567,18 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let signer = self
+        let sender = self
             .signer
             .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
-
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .address();
 
         let instantiate_msg = crate::transaction::messages::msg_instantiate_contract(
-            &signer.address(),
-            admin,
-            code_id,
-            label,
-            msg,
-            funds,
+            &sender, admin, code_id, label, msg, funds,
         )?;
 
-        let resolved_gas = match gas_limit {
-            Some(limit) => limit,
-            None => {
-                self.estimate_gas(instantiate_msg.clone(), memo.as_deref())
-                    .await?
-            }
-        };
-
-        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
-
-        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(instantiate_msg);
-        tx_builder.with_fee(fee);
-
-        if let Some(memo_text) = memo {
-            tx_builder.with_memo(memo_text);
-        }
-
-        let tx_bytes = tx_builder.sign(
-            signer.as_ref(),
-            account.account_number()?,
-            account.sequence()?,
-        )?;
-
-        let response = self
-            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
-            .await?;
-
-        if let Some(acc) = &self.account {
-            acc.increment_sequence();
-        }
-
-        Ok(response)
+        self.sign_and_broadcast_messages(vec![instantiate_msg], memo, gas_limit)
+            .await
     }
 
     /// Simulate a signed transaction to estimate gas usage.
@@ -767,7 +629,7 @@ impl Client {
 
     /// Estimate gas for a transaction by simulating it with a zero fee,
     /// then applying a multiplier (1.4x) for safety margin.
-    async fn estimate_gas(&self, message: cosmrs::Any, memo: Option<&str>) -> Result<u64> {
+    async fn estimate_gas(&self, messages: &[cosmrs::Any], memo: Option<&str>) -> Result<u64> {
         let signer = self
             .signer
             .as_ref()
@@ -782,7 +644,9 @@ impl Client {
         let zero_fee = crate::transaction::calculate_fee(0, "0", "uxion")?;
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(message);
+        for m in messages {
+            tx_builder.add_message(m.clone());
+        }
         tx_builder.with_fee(zero_fee);
 
         if let Some(m) = memo {
@@ -799,6 +663,56 @@ impl Client {
 
         // Apply 1.4x multiplier for safety margin
         Ok((gas_used as f64 * 1.4) as u64)
+    }
+
+    /// Sign and broadcast a transaction with one or more messages.
+    /// If gas_limit is None, simulates to estimate gas.
+    async fn sign_and_broadcast_messages(
+        &self,
+        messages: Vec<cosmrs::Any>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let signer = self
+            .signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
+
+        let account = self
+            .account
+            .as_ref()
+            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+
+        let resolved_gas = match gas_limit {
+            Some(limit) => limit,
+            None => self.estimate_gas(&messages, memo.as_deref()).await?,
+        };
+
+        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
+
+        let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
+        tx_builder.add_messages(messages);
+        tx_builder.with_fee(fee);
+
+        if let Some(memo_text) = memo {
+            tx_builder.with_memo(memo_text);
+        }
+
+        let tx_bytes = tx_builder.sign(
+            signer.as_ref(),
+            account.account_number()?,
+            account.sequence()?,
+        )?;
+
+        let response = self
+            .broadcast_tx_internal(tx_bytes, BroadcastMode::Sync)
+            .await?;
+
+        if let Some(acc) = &self.account {
+            acc.increment_sequence();
+        }
+
+        Ok(response)
     }
 
     /// Broadcast a signed transaction (internal)
