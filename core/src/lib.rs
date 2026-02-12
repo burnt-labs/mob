@@ -69,6 +69,7 @@ pub mod types;
 pub use account::{abstraction, Account};
 #[cfg(feature = "rpc-client")]
 pub use client::Client;
+pub use cosmrs::Any;
 pub use crypto_signer::{CryptoSigner, SignerError};
 pub use error::{MobError, Result};
 #[cfg(feature = "rust-signer")]
