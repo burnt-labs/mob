@@ -561,9 +561,13 @@ public protocol ClientProtocol: AnyObject, Sendable {
     func attachSigner(signer: Signer) throws 
     
     /**
-     * Execute a CosmWasm contract (synchronous wrapper)
+     * Execute a CosmWasm contract (synchronous wrapper).
+     * Mirrors xion.js GranteeSignerClient behavior:
+     * - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
+     * using the granter as the contract sender and the signer as the grantee.
+     * - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
      */
-    func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?) throws  -> TxResponse
+    func executeContract(contractAddress: String, msg: Data, funds: [Coin], granter: String?, feeGranter: String?, memo: String?) throws  -> TxResponse
     
     /**
      * Query account information (synchronous wrapper)
@@ -692,15 +696,21 @@ open func attachSigner(signer: Signer)throws   {try rustCallWithError(FfiConvert
 }
     
     /**
-     * Execute a CosmWasm contract (synchronous wrapper)
+     * Execute a CosmWasm contract (synchronous wrapper).
+     * Mirrors xion.js GranteeSignerClient behavior:
+     * - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
+     * using the granter as the contract sender and the signer as the grantee.
+     * - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
      */
-open func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?)throws  -> TxResponse  {
+open func executeContract(contractAddress: String, msg: Data, funds: [Coin], granter: String?, feeGranter: String?, memo: String?)throws  -> TxResponse  {
     return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_method_client_execute_contract(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(contractAddress),
         FfiConverterData.lower(msg),
         FfiConverterSequenceTypeCoin.lower(funds),
+        FfiConverterOptionString.lower(granter),
+        FfiConverterOptionString.lower(feeGranter),
         FfiConverterOptionString.lower(memo),$0
     )
 })
@@ -1718,7 +1728,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mob_checksum_method_client_attach_signer() != 52997) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_execute_contract() != 63353) {
+    if (uniffi_mob_checksum_method_client_execute_contract() != 61272) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_get_account() != 2621) {

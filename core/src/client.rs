@@ -100,12 +100,18 @@ impl Client {
         runtime.block_on(self.send_internal(&to_address, amount, memo))
     }
 
-    /// Execute a CosmWasm contract (synchronous wrapper)
+    /// Execute a CosmWasm contract (synchronous wrapper).
+    /// Mirrors xion.js GranteeSignerClient behavior:
+    /// - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
+    ///   using the granter as the contract sender and the signer as the grantee.
+    /// - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
     pub fn execute_contract(
         &self,
         contract_address: String,
         msg: Vec<u8>,
         funds: Vec<Coin>,
+        granter: Option<String>,
+        fee_granter: Option<String>,
         memo: Option<String>,
     ) -> Result<TxResponse> {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -113,7 +119,9 @@ impl Client {
             .build()
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
-        runtime.block_on(self.execute_contract_internal(&contract_address, &msg, funds, memo))
+        runtime.block_on(self.execute_contract_internal(
+            &contract_address, &msg, funds, granter, fee_granter, memo,
+        ))
     }
 
     /// Query transaction by hash (synchronous wrapper)
@@ -436,12 +444,19 @@ impl Client {
         Ok(response)
     }
 
-    /// Execute a CosmWasm contract (internal)
+    /// Execute a CosmWasm contract (internal).
+    /// Mirrors xion.js GranteeSignerClient.signAndBroadcast:
+    /// - If granter is Some, the inner MsgExecuteContract sender is the granter
+    ///   and the message is wrapped in MsgExec signed by the grantee (signer).
+    /// - If granter is None, sender is the signer directly (no authz).
+    /// - If fee_granter is Some, it is set on the fee so that account pays gas.
     async fn execute_contract_internal(
         &self,
         contract_address: &str,
         msg: &[u8],
         funds: Vec<Coin>,
+        granter: Option<String>,
+        fee_granter: Option<String>,
         memo: Option<String>,
     ) -> Result<TxResponse> {
         let signer = self
@@ -454,24 +469,37 @@ impl Client {
             .as_ref()
             .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
 
-        // Build execute contract message
-        let execute_msg = crate::transaction::messages::msg_execute_contract(
-            &signer.address(),
-            contract_address,
-            msg,
-            funds,
-        )?;
+        // Build message: wrap in MsgExec if granter is provided
+        let tx_msg = if let Some(ref granter_addr) = granter {
+            crate::transaction::messages::msg_execute_contract_authz(
+                &signer.address(),
+                granter_addr,
+                contract_address,
+                msg,
+                funds,
+            )?
+        } else {
+            crate::transaction::messages::msg_execute_contract(
+                &signer.address(),
+                contract_address,
+                msg,
+                funds,
+            )?
+        };
 
-        // Calculate fee
-        let fee = crate::transaction::calculate_fee(
+        // Calculate fee, optionally with a fee granter
+        let mut fee = crate::transaction::calculate_fee(
             300_000,
             &self.config.gas_price,
             "uxion",
         )?;
+        if let Some(fg) = fee_granter {
+            fee = fee.with_granter(fg);
+        }
 
         // Build transaction
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
-        tx_builder.add_message(execute_msg);
+        tx_builder.add_message(tx_msg);
         tx_builder.with_fee(fee);
 
         if let Some(memo_text) = memo {

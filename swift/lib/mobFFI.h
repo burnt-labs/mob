@@ -270,7 +270,7 @@ void uniffi_mob_fn_method_client_attach_signer(uint64_t ptr, uint64_t _signer, R
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
-RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer memo, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer granter, RustBuffer fee_granter, RustBuffer memo, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_GET_ACCOUNT
