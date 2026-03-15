@@ -464,10 +464,8 @@ impl Client {
             .as_ref()
             .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
 
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+        // Refetch account info to get current sequence
+        let account_info = self.get_account_internal(&signer.address()).await?;
 
         // Build message: wrap in MsgExec if granter is provided
         let tx_msg = if let Some(ref granter_addr) = granter {
@@ -506,11 +504,11 @@ impl Client {
             tx_builder.with_memo(memo_text);
         }
 
-        // Sign transaction
+        // Sign transaction with fresh sequence
         let tx_bytes = tx_builder.sign(
             signer,
-            account.account_number()?,
-            account.sequence()?,
+            account_info.account_number,
+            account_info.sequence,
         )?;
 
         // Broadcast transaction
