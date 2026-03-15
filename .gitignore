@@ -42,3 +42,4 @@ vendor/
 # Kotlin
 *.class
 *.kotlin_module
+python/mob/mob/
