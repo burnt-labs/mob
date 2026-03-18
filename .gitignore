@@ -46,6 +46,8 @@ swift/lib/libmob.dylib
 swift/lib/*.so
 swift/lib/*.dll
 swift/lib/*.xcframework
+swift/Sources/*/include/mobFFI.h
+swift/Sources/*/include/module.modulemap
 
 # Python
 __pycache__/
