@@ -70,3 +70,13 @@ kotlin/build/
 
 # Swift
 .build/
+
+# React Native / Expo module
+react-native/build/
+react-native/node_modules/
+react-native/ios/Frameworks/
+react-native/ios/generated/
+react-native/android/src/main/jniLibs/
+react-native/android/src/main/java/uniffi/
+react-native/android/build/
+react-native/android/.gradle/

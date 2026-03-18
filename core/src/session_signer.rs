@@ -289,9 +289,25 @@ impl SessionSigner {
         let first_coin = coins
             .first()
             .ok_or(MobError::Transaction("No fee coins".to_string()))?;
-        let fee_builder = cosmrs::tx::Fee::from_amount_and_gas(first_coin.clone(), fee.gas_limit);
+        let mut cosmos_fee =
+            cosmrs::tx::Fee::from_amount_and_gas(first_coin.clone(), fee.gas_limit);
 
-        Ok(fee_builder)
+        if let Some(ref granter) = fee.granter {
+            cosmos_fee.granter = Some(
+                granter
+                    .parse()
+                    .map_err(|e| MobError::Transaction(format!("Invalid fee granter: {}", e)))?,
+            );
+        }
+        if let Some(ref payer) = fee.payer {
+            cosmos_fee.payer = Some(
+                payer
+                    .parse()
+                    .map_err(|e| MobError::Transaction(format!("Invalid fee payer: {}", e)))?,
+            );
+        }
+
+        Ok(cosmos_fee)
     }
 }
 

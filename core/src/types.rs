@@ -110,6 +110,9 @@ pub struct ChainConfig {
     pub address_prefix: String,
     pub coin_type: u32,
     pub gas_price: String,
+    /// Optional fee granter address (e.g. treasury contract).
+    /// When set, all transactions include this address as the fee granter.
+    pub fee_granter: Option<String>,
 }
 
 impl ChainConfig {
@@ -125,6 +128,7 @@ impl ChainConfig {
             address_prefix: address_prefix.into(),
             coin_type: 118, // Default Cosmos coin type
             gas_price: "0.025".to_string(),
+            fee_granter: None,
         }
     }
 
@@ -146,9 +150,18 @@ impl ChainConfig {
 
 /// Message type for transactions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct Message {
     pub type_url: String,
     pub value: Vec<u8>,
+}
+
+/// Signer address and public key, returned from session manager operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
+pub struct SignerInfo {
+    pub address: String,
+    pub public_key_hex: String,
 }
 
 /// Signature information

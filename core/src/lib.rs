@@ -61,6 +61,8 @@ pub mod error;
 #[cfg(feature = "rust-signer")]
 pub mod rust_signer;
 pub mod session;
+#[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
+pub mod session_manager;
 pub mod session_signer;
 pub mod transaction;
 pub mod types;
@@ -75,10 +77,13 @@ pub use error::{MobError, Result};
 #[cfg(feature = "rust-signer")]
 pub use rust_signer::RustSigner;
 pub use session::SessionMetadata;
+#[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
+pub use session_manager::MobSessionManager;
 pub use session_signer::SessionSigner;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
-    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, TxResponse,
+    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, SignerInfo,
+    TxResponse,
 };
 
 // UniFFI setup - only when uniffi-bindings feature is enabled

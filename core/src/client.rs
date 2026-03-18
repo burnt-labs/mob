@@ -9,7 +9,7 @@ use crate::{
     crypto_signer::CryptoSigner,
     error::{MobError, Result},
     transaction::TransactionBuilder,
-    types::{AccountInfo, BroadcastMode, ChainConfig, Coin, TxResponse},
+    types::{AccountInfo, BroadcastMode, ChainConfig, Coin, Message, TxResponse},
 };
 use cosmrs::AccountId;
 use std::{str::FromStr, sync::Arc};
@@ -190,6 +190,43 @@ impl Client {
 
         runtime.block_on(self.get_chain_id_internal())
     }
+
+    /// Query a CosmWasm smart contract (read-only, synchronous wrapper)
+    pub fn query_contract_smart(
+        &self,
+        contract_address: String,
+        query_msg: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.query_contract_smart_internal(&contract_address, &query_msg))
+    }
+
+    /// Sign and broadcast a transaction with multiple FFI-safe messages (synchronous wrapper)
+    pub fn sign_and_broadcast_multi(
+        &self,
+        messages: Vec<Message>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+    ) -> Result<TxResponse> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        let any_messages: Vec<cosmrs::Any> = messages
+            .into_iter()
+            .map(|m| cosmrs::Any {
+                type_url: m.type_url,
+                value: m.value,
+            })
+            .collect();
+
+        runtime.block_on(self.sign_and_broadcast_messages(any_messages, memo, gas_limit))
+    }
 }
 
 // Public API for multi-message transactions (not exposed via UniFFI)
@@ -212,16 +249,41 @@ impl Client {
     }
 }
 
+// CryptoSigner-accepting constructor (works with any CryptoSigner implementation, including foreign)
+#[cfg(feature = "rpc-client")]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
+impl Client {
+    /// Create a new RPC client with any CryptoSigner implementation attached.
+    ///
+    /// This accepts foreign (Swift/Kotlin/Python) CryptoSigner implementations,
+    /// enabling platform-native cryptographic backends.
+    #[uniffi::constructor]
+    pub fn new_with_crypto_signer(
+        config: ChainConfig,
+        signer: Arc<dyn CryptoSigner>,
+    ) -> Result<Self> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(async {
+            let mut client = Self::new_async(config).await?;
+            client.attach_crypto_signer(signer).await?;
+            Ok(client)
+        })
+    }
+}
+
 // RustSigner-specific FFI constructors (only with rust-signer feature)
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 #[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
 impl Client {
-    /// Create a new RPC client with a signer attached (synchronous wrapper for FFI)
+    /// Create a new RPC client with a RustSigner attached (synchronous wrapper for FFI)
     ///
     /// Note: This constructor is only available with the `rust-signer` feature.
     #[uniffi::constructor]
     pub fn new_with_signer(config: ChainConfig, signer: Arc<RustSigner>) -> Result<Self> {
-        // Create a runtime and block on the async operation
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -641,7 +703,10 @@ impl Client {
             .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
 
         // Build tx with zero fee for simulation
-        let zero_fee = crate::transaction::calculate_fee(0, "0", "uxion")?;
+        let mut zero_fee = crate::transaction::calculate_fee(0, "0", "uxion")?;
+        if let Some(ref granter) = self.config.fee_granter {
+            zero_fee.granter = Some(granter.clone());
+        }
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
         for m in messages {
@@ -688,7 +753,11 @@ impl Client {
             None => self.estimate_gas(&messages, memo.as_deref()).await?,
         };
 
-        let fee = crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
+        let mut fee =
+            crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
+        if let Some(ref granter) = self.config.fee_granter {
+            fee.granter = Some(granter.clone());
+        }
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
         tx_builder.add_messages(messages);
@@ -834,6 +903,103 @@ impl Client {
     async fn get_chain_id_internal(&self) -> Result<String> {
         Ok(self.config.chain_id.clone())
     }
+
+    /// Query a CosmWasm smart contract (internal)
+    async fn query_contract_smart_internal(
+        &self,
+        contract_address: &str,
+        query_msg: &[u8],
+    ) -> Result<Vec<u8>> {
+        use prost::Message;
+
+        let query_path = "/cosmwasm.wasm.v1.Query/SmartContractState".to_string();
+
+        let request = xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest {
+            address: contract_address.to_string(),
+            query_data: query_msg.to_vec(),
+        };
+
+        let mut buf = Vec::new();
+        request.encode(&mut buf).map_err(|e| {
+            MobError::Transaction(format!("Failed to encode smart query request: {}", e))
+        })?;
+
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
+            .await
+            .map_err(|e| MobError::Network(format!("Smart contract query failed: {}", e)))?;
+
+        if response.code.is_err() {
+            return Err(MobError::Network(format!(
+                "Smart contract query returned error code {}: {}",
+                response.code.value(),
+                response.log
+            )));
+        }
+
+        let query_response =
+            xion_types::cosmwasm::wasm::v1::QuerySmartContractStateResponse::decode(
+                response.value.as_slice(),
+            )
+            .map_err(|e| {
+                MobError::Transaction(format!("Failed to decode smart query response: {}", e))
+            })?;
+
+        Ok(query_response.data)
+    }
+
+    /// Query authz grants between a granter and grantee.
+    /// Returns true if at least one active grant exists.
+    async fn query_grants_internal(&self, granter: &str, grantee: &str) -> Result<bool> {
+        use prost::Message;
+
+        let query_path = "/cosmos.authz.v1beta1.Query/Grants".to_string();
+
+        let request = xion_types::cosmos::authz::v1beta1::QueryGrantsRequest {
+            granter: granter.to_string(),
+            grantee: grantee.to_string(),
+            msg_type_url: String::new(),
+            pagination: None,
+        };
+
+        let mut buf = Vec::new();
+        request
+            .encode(&mut buf)
+            .map_err(|e| MobError::Transaction(format!("Failed to encode grants query: {}", e)))?;
+
+        let response = self
+            .rpc_client
+            .abci_query(Some(query_path), buf, None, false)
+            .await
+            .map_err(|e| MobError::Network(format!("Grants query failed: {}", e)))?;
+
+        if response.code.is_err() {
+            return Ok(false);
+        }
+
+        let query_response = xion_types::cosmos::authz::v1beta1::QueryGrantsResponse::decode(
+            response.value.as_slice(),
+        )
+        .map_err(|e| MobError::Transaction(format!("Failed to decode grants response: {}", e)))?;
+
+        Ok(!query_response.grants.is_empty())
+    }
+}
+
+// FFI-exported grant verification
+#[cfg(feature = "rpc-client")]
+#[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
+impl Client {
+    /// Check whether authz grants exist between a granter and grantee.
+    pub fn has_grants(&self, granter: String, grantee: String) -> Result<bool> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(self.query_grants_internal(&granter, &grantee))
+    }
 }
 
 #[cfg(test)]
@@ -863,5 +1029,46 @@ mod tests {
         assert_eq!(config.chain_id, "xion-testnet-1");
         assert_eq!(config.address_prefix, "xion");
         assert_eq!(config.coin_type, 118);
+    }
+
+    #[test]
+    fn test_sign_and_broadcast_multi_converts_messages() {
+        // Verify that Message -> cosmrs::Any conversion works correctly
+        let msg = Message {
+            type_url: "/cosmos.bank.v1beta1.MsgSend".to_string(),
+            value: vec![1, 2, 3, 4],
+        };
+
+        let any: cosmrs::Any = cosmrs::Any {
+            type_url: msg.type_url.clone(),
+            value: msg.value.clone(),
+        };
+
+        assert_eq!(any.type_url, "/cosmos.bank.v1beta1.MsgSend");
+        assert_eq!(any.value, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_query_contract_smart_request_encoding() {
+        use prost::Message as ProstMessage;
+
+        let contract = "xion1contractaddr";
+        let query_msg = br#"{"balance":{"address":"xion1user"}}"#;
+
+        let request = xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest {
+            address: contract.to_string(),
+            query_data: query_msg.to_vec(),
+        };
+
+        let mut buf = Vec::new();
+        request.encode(&mut buf).expect("Failed to encode request");
+        assert!(!buf.is_empty());
+
+        // Verify round-trip
+        let decoded =
+            xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest::decode(buf.as_slice())
+                .expect("Failed to decode");
+        assert_eq!(decoded.address, contract);
+        assert_eq!(decoded.query_data, query_msg.to_vec());
     }
 }
