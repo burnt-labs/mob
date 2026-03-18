@@ -41,6 +41,9 @@ k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
 ripemd = "0.1"
 sha2 = "0.10"
 
+# HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
 # Utilities
 hex = "0.4"
 thiserror = "1"

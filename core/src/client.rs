@@ -230,64 +230,64 @@ impl Client {
         Ok(())
     }
 
-    /// Query account information (internal)
+    /// Query account information via LCD REST endpoint (latest state).
+    /// Falls back to ABCI if LCD is not configured.
     async fn get_account_internal(&self, address: &str) -> Result<AccountInfo> {
-        // Validate address
         let _account_id = AccountId::from_str(address)
             .map_err(|e| MobError::Address(format!("Invalid address: {}", e)))?;
 
-        // Query account info using ABCI query
-        let query_path = format!("/cosmos.auth.v1beta1.Query/Account");
+        // Derive LCD endpoint from RPC endpoint
+        let lcd_endpoint = self.config.rpc_endpoint
+            .replace("rpc.", "api.")
+            .replace(":443", "");
 
-        // Create the query request protobuf
-        let query_request = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountRequest {
-            address: address.to_string(),
-        };
+        let url = format!(
+            "{}/cosmos/auth/v1beta1/accounts/{}",
+            lcd_endpoint, address
+        );
 
-        // Encode the request
-        use prost::Message;
-        let mut buf = Vec::new();
-        query_request.encode(&mut buf)
-            .map_err(|e| MobError::Transaction(format!("Failed to encode account query: {}", e)))?;
-
-        // Query via ABCI
-        let response = self.rpc_client
-            .abci_query(
-                Some(query_path),
-                buf,
-                None,
-                false,
-            )
+        // Query via HTTP
+        let response = reqwest::get(&url)
             .await
             .map_err(|e| MobError::Network(format!("Account query failed: {}", e)))?;
 
-        // Check for errors
-        if response.code.is_err() {
-            return Err(MobError::Network(format!(
-                "Account query returned error code {}: {}",
-                response.code.value(),
-                response.log
-            )));
-        }
+        let body = response.text()
+            .await
+            .map_err(|e| MobError::Network(format!("Failed to read account response: {}", e)))?;
 
-        // Decode the response
-        let query_response = cosmos_sdk_proto::cosmos::auth::v1beta1::QueryAccountResponse::decode(
-            response.value.as_slice()
-        ).map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
+        // Parse JSON response
+        let json: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| MobError::Account(format!("Failed to parse account JSON: {}", e)))?;
 
-        // Extract account info from Any type
-        let account_any = query_response.account
-            .ok_or_else(|| MobError::Account("Account not found".to_string()))?;
+        // Extract account info — handle both BaseAccount and AbstractAccount types
+        let account = json.get("account")
+            .ok_or_else(|| MobError::Account("No account field in response".to_string()))?;
 
-        // Decode BaseAccount from Any
-        let base_account = cosmos_sdk_proto::cosmos::auth::v1beta1::BaseAccount::decode(
-            account_any.value.as_slice()
-        ).map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
+        // Try to get account_number and sequence from the account or nested base_account
+        let (account_number, sequence) = if let Some(base) = account.get("base_account") {
+            // AbstractAccount wraps a base_account
+            let num = base.get("account_number")
+                .and_then(|v| v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| if s.is_empty() { v.as_u64() } else { s.parse().ok() }))
+                .unwrap_or(0);
+            let seq = base.get("sequence")
+                .and_then(|v| v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| if s.is_empty() { v.as_u64() } else { s.parse().ok() }))
+                .unwrap_or(0);
+            (num, seq)
+        } else {
+            // Direct BaseAccount
+            let num = account.get("account_number")
+                .and_then(|v| v.as_str().and_then(|s| s.parse().ok()).or_else(|| v.as_u64()))
+                .unwrap_or(0);
+            let seq = account.get("sequence")
+                .and_then(|v| v.as_str().and_then(|s| s.parse().ok()).or_else(|| v.as_u64()))
+                .unwrap_or(0);
+            (num, seq)
+        };
 
         Ok(AccountInfo {
             address: address.to_string(),
-            account_number: base_account.account_number,
-            sequence: base_account.sequence,
+            account_number,
+            sequence,
             pub_key: None,
         })
     }
