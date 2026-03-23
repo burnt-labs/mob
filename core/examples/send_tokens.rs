@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Client, Coin, RustSigner};
+use mob::{ChainConfig, Client, Coin, HttpTransport, RustSigner, UreqTransport};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -12,13 +12,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "xion".to_string(),
     );
 
+    let transport: Arc<dyn HttpTransport> = Arc::new(UreqTransport::new());
+
     let mnemonic = std::env::var("MNEMONIC").expect("MNEMONIC environment variable not set");
 
     let signer = RustSigner::from_mnemonic(mnemonic, "xion".to_string(), None)?;
     println!("Sender address: {}\n", signer.address());
 
     // Create and configure client
-    let mut client = Client::new(config)?;
+    let mut client = Client::new_with_transport(config, transport);
     client.attach_crypto_signer(Arc::new(signer)).await?;
 
     // Recipient address (replace with actual address)

@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Client, RustSigner};
+use mob::{ChainConfig, Client, HttpTransport, RustSigner, UreqTransport};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -20,6 +20,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.chain_id, config.rpc_endpoint, config.address_prefix
     );
 
+    let transport: Arc<dyn HttpTransport> = Arc::new(UreqTransport::new());
+
     // 2. Create a signer from mnemonic
     println!("2. Creating signer from mnemonic...");
     let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -30,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Create RPC client
     println!("3. Creating RPC client...");
-    let mut client = Client::new(config)?;
+    let mut client = Client::new_with_transport(config, transport);
     println!("   Client created successfully\n");
 
     // 4. Attach signer to client

@@ -1,13 +1,16 @@
 // Only compile RPC client when rpc-client feature is enabled
 #[cfg(feature = "rpc-client")]
-use tendermint_rpc::{Client as TmClient, HttpClient};
+use tendermint_rpc::client::Client as TmClient;
 
+#[cfg(feature = "rpc-client")]
+use crate::native_rpc_client::NativeRpcClient;
 #[cfg(feature = "rust-signer")]
 use crate::rust_signer::RustSigner;
 use crate::{
     account::Account,
     crypto_signer::CryptoSigner,
     error::{MobError, Result},
+    http_transport::HttpTransport,
     transaction::TransactionBuilder,
     types::{AccountInfo, BroadcastMode, ChainConfig, Coin, Message, TxResponse},
 };
@@ -20,7 +23,7 @@ use std::{str::FromStr, sync::Arc};
 #[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct Client {
     config: ChainConfig,
-    rpc_client: HttpClient,
+    rpc_client: NativeRpcClient,
     signer: Option<Arc<dyn CryptoSigner>>,
     account: Option<Account>,
 }
@@ -30,14 +33,8 @@ pub struct Client {
 impl Client {
     /// Create a new RPC client (synchronous wrapper for FFI)
     #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
-    pub fn new(config: ChainConfig) -> Result<Self> {
-        // Create a runtime and block on the async operation
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
-
-        runtime.block_on(Self::new_async(config))
+    pub fn new(config: ChainConfig, transport: Arc<dyn HttpTransport>) -> Result<Self> {
+        Ok(Self::new_with_transport(config, transport))
     }
 
     /// Query account information (synchronous wrapper)
@@ -261,6 +258,7 @@ impl Client {
     pub fn new_with_crypto_signer(
         config: ChainConfig,
         signer: Arc<dyn CryptoSigner>,
+        transport: Arc<dyn HttpTransport>,
     ) -> Result<Self> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -268,7 +266,7 @@ impl Client {
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
         runtime.block_on(async {
-            let mut client = Self::new_async(config).await?;
+            let mut client = Self::new_with_transport(config, transport);
             client.attach_crypto_signer(signer).await?;
             Ok(client)
         })
@@ -283,14 +281,18 @@ impl Client {
     ///
     /// Note: This constructor is only available with the `rust-signer` feature.
     #[uniffi::constructor]
-    pub fn new_with_signer(config: ChainConfig, signer: Arc<RustSigner>) -> Result<Self> {
+    pub fn new_with_signer(
+        config: ChainConfig,
+        signer: Arc<RustSigner>,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<Self> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
         runtime.block_on(async {
-            let mut client = Self::new_async(config).await?;
+            let mut client = Self::new_with_transport(config, transport);
             client.attach_signer_internal(signer).await?;
             Ok(client)
         })
@@ -311,18 +313,16 @@ impl Client {
 // Internal implementation
 #[cfg(feature = "rpc-client")]
 impl Client {
-    /// Create a new RPC client (async version for internal use)
-    /// Create a new RPC client (async version for internal use and tests)
-    pub async fn new_async(config: ChainConfig) -> Result<Self> {
-        let rpc_client = HttpClient::new(config.rpc_endpoint.as_str())
-            .map_err(|e| MobError::Network(format!("Failed to create RPC client: {}", e)))?;
+    /// Create a new RPC client with a native HTTP transport.
+    pub fn new_with_transport(config: ChainConfig, transport: Arc<dyn HttpTransport>) -> Self {
+        let rpc_client = NativeRpcClient::new(config.rpc_endpoint.clone(), transport);
 
-        Ok(Self {
+        Self {
             config,
             rpc_client,
             signer: None,
             account: None,
-        })
+        }
     }
 
     /// Attach a signer to the client (internal)
@@ -1005,6 +1005,19 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http_transport::{HttpTransport, TransportError};
+
+    /// A mock transport for tests — returns an error on every request.
+    struct MockTransport;
+    impl HttpTransport for MockTransport {
+        fn post(
+            &self,
+            _url: String,
+            _body: Vec<u8>,
+        ) -> std::result::Result<Vec<u8>, TransportError> {
+            Err(TransportError::NetworkError("mock transport".to_string()))
+        }
+    }
 
     #[test]
     fn test_client_creation() {
@@ -1014,8 +1027,9 @@ mod tests {
             "xion",
         );
 
-        // This will fail without a real RPC endpoint, but tests the structure
-        let _result = Client::new(config);
+        let transport: Arc<dyn HttpTransport> = Arc::new(MockTransport);
+        let result = Client::new(config, transport);
+        assert!(result.is_ok());
     }
 
     #[test]

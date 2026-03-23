@@ -31,7 +31,8 @@ class MobTest {
     }
 
     private lateinit var config: ChainConfig
-    private lateinit var signer: Signer
+    private lateinit var signer: RustSigner
+    private lateinit var transport: NativeHttpTransport
 
     @BeforeEach
     fun setUp() {
@@ -44,49 +45,51 @@ class MobTest {
             gasPrice = "0.025"
         )
 
-        signer = Signer.fromMnemonic(
+        signer = RustSigner.fromMnemonic(
             mnemonic = TEST_MNEMONIC,
             addressPrefix = ADDRESS_PREFIX,
             derivationPath = "m/44'/118'/0'/0/0"
         )
+
+        transport = NativeHttpTransport()
     }
 
     @Test
     fun testCreateClient() {
-        val client = Client(config)
+        val client = Client(config, transport)
         assertNotNull(client)
     }
 
     @Test
     fun testGetHeight() {
-        val client = Client(config)
+        val client = Client(config, transport)
         val height = client.getHeight()
 
         assertTrue(height > 0u, "Height should be greater than 0")
-        println("✅ Current block height: $height")
+        println("Current block height: $height")
     }
 
     @Test
     fun testGetChainId() {
-        val client = Client(config)
+        val client = Client(config, transport)
         val chainId = client.getChainId()
 
         assertEquals(CHAIN_ID, chainId)
-        println("✅ Chain ID: $chainId")
+        println("Chain ID: $chainId")
     }
 
     @Test
     fun testIsSynced() {
-        val client = Client(config)
+        val client = Client(config, transport)
         val isSynced = client.isSynced()
 
         assertNotNull(isSynced)
-        println("✅ Node synced: $isSynced")
+        println("Node synced: $isSynced")
     }
 
     @Test
     fun testCreateSigner() {
-        val signer = Signer.fromMnemonic(
+        val signer = RustSigner.fromMnemonic(
             mnemonic = TEST_MNEMONIC,
             addressPrefix = ADDRESS_PREFIX,
             derivationPath = "m/44'/118'/0'/0/0"
@@ -95,12 +98,12 @@ class MobTest {
         assertNotNull(signer)
         val address = signer.address()
         assertTrue(address.startsWith(ADDRESS_PREFIX), "Address should start with $ADDRESS_PREFIX")
-        println("✅ Signer address: $address")
+        println("Signer address: $address")
     }
 
     @Test
     fun testGetAccount() {
-        val client = Client(config)
+        val client = Client(config, transport)
         val address = signer.address()
 
         val accountInfo = client.getAccount(address)
@@ -108,62 +111,62 @@ class MobTest {
         assertEquals(address, accountInfo.address)
         assertTrue(accountInfo.accountNumber >= 0u)
         assertTrue(accountInfo.sequence >= 0u)
-        println("✅ Account number: ${accountInfo.accountNumber}, Sequence: ${accountInfo.sequence}")
+        println("Account number: ${accountInfo.accountNumber}, Sequence: ${accountInfo.sequence}")
     }
 
     @Test
     fun testGetBalance() {
-        val client = Client(config)
+        val client = Client(config, transport)
         val address = signer.address()
 
         val balance = client.getBalance(address, "uxion")
 
         assertEquals("uxion", balance.denom)
         assertNotNull(balance.amount)
-        println("✅ Balance: ${balance.amount} ${balance.denom}")
+        println("Balance: ${balance.amount} ${balance.denom}")
     }
 
     @Test
     fun testSignMessage() {
         val message = "Hello, XION!".toByteArray()
-        val signature = signer.signBytes(message)
+        val signature = signer.signBytes(message.map { it.toUByte() })
 
         assertNotNull(signature)
         assertTrue(signature.isNotEmpty())
-        println("✅ Signed message, signature length: ${signature.size} bytes")
+        println("Signed message, signature length: ${signature.size} bytes")
     }
 
     @Test
     fun testInvalidMnemonic() {
-        assertThrows<MobException.KeyDerivation> {
-            Signer.fromMnemonic(
+        assertThrows<MobException> {
+            RustSigner.fromMnemonic(
                 mnemonic = "invalid mnemonic words",
                 addressPrefix = "xion",
                 derivationPath = "m/44'/118'/0'/0/0"
             )
         }
-        println("✅ Invalid mnemonic properly rejected")
+        println("Invalid mnemonic properly rejected")
     }
 
     @Test
     fun testInvalidAddress() {
-        val client = Client(config)
+        val client = Client(config, transport)
 
         assertThrows<Exception> {
             client.getAccount("invalid_address")
         }
-        println("✅ Invalid address properly rejected")
+        println("Invalid address properly rejected")
     }
 
     @Test
     fun testMultipleSigners() {
-        val signer1 = Signer.fromMnemonic(
+        val signer1 = RustSigner.fromMnemonic(
             mnemonic = TEST_MNEMONIC,
             addressPrefix = "xion",
             derivationPath = "m/44'/118'/0'/0/0"
         )
 
-        val signer2 = Signer.fromMnemonic(
+        val signer2 = RustSigner.fromMnemonic(
             mnemonic = TEST_MNEMONIC,
             addressPrefix = "xion",
             derivationPath = "m/44'/118'/0'/0/1"
@@ -173,8 +176,8 @@ class MobTest {
         val addr2 = signer2.address()
 
         assertTrue(addr1 != addr2, "Different derivation paths should yield different addresses")
-        println("✅ Account 0: $addr1")
-        println("✅ Account 1: $addr2")
+        println("Account 0: $addr1")
+        println("Account 1: $addr2")
     }
 
     @Test
@@ -183,6 +186,6 @@ class MobTest {
 
         assertEquals("uxion", coin.denom)
         assertEquals("1000000", coin.amount)
-        println("✅ Created coin: ${coin.amount} ${coin.denom}")
+        println("Created coin: ${coin.amount} ${coin.denom}")
     }
 }

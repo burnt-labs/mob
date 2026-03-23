@@ -107,6 +107,12 @@ impl From<std::io::Error> for MobError {
     }
 }
 
+impl From<crate::http_transport::TransportError> for MobError {
+    fn from(err: crate::http_transport::TransportError) -> Self {
+        MobError::Network(err.to_string())
+    }
+}
+
 /// Result type alias for mob operations
 pub type Result<T> = std::result::Result<T, MobError>;
 

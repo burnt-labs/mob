@@ -13,19 +13,20 @@ let config = ChainConfig(
 )
 
 do {
-    let client = try Client(config: config)
+    let transport = NativeHttpTransport()
+    let client = try Client(config: config, transport: transport)
 
-    print("🔗 Connected to XION testnet")
+    print("Connected to XION testnet")
 
     let height = try client.getHeight()
-    print("📏 Current block height: \(height)")
+    print("Current block height: \(height)")
 
     let chainId = try client.getChainId()
-    print("🆔 Chain ID: \(chainId)")
+    print("Chain ID: \(chainId)")
 
     let isSynced = try client.isSynced()
-    print("✅ Node synced: \(isSynced)")
+    print("Node synced: \(isSynced)")
 
 } catch {
-    print("❌ Error: \(error)")
+    print("Error: \(error)")
 }

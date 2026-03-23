@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.platform       = :ios, '16.0'
   s.swift_version  = '5.9'
 
-  s.source_files   = '*.swift', 'generated/mob.swift'
+  s.source_files   = '*.swift', 'generated/mob.swift', '../../swift/Sources/Mob/NativeHttpTransport.swift'
 
   s.preserve_paths = 'Frameworks/libmob.xcframework', 'generated/mobFFI.h', 'generated/module.modulemap'
 

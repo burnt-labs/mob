@@ -8,6 +8,7 @@ public class MobModule: Module {
   private var sessionManagers: [String: MobSessionManager] = [:]
   private var clientCounter: Int = 0
   private var sessionCounter: Int = 0
+  private let transport: HttpTransport = NativeHttpTransport()
 
   public func definition() -> ModuleDefinition {
     Name("Mob")
@@ -98,7 +99,7 @@ public class MobModule: Module {
 
     AsyncFunction("createClient") { (config: [String: Any]) -> String in
       let chainConfig = try self.parseChainConfig(config)
-      let client = try Client(config: chainConfig)
+      let client = try Client(config: chainConfig, transport: self.transport)
       let clientId = self.nextClientId()
       self.clients[clientId] = client
       return clientId
@@ -109,7 +110,7 @@ public class MobModule: Module {
         throw MobModuleError.signerNotFound(signerAddress)
       }
       let chainConfig = try self.parseChainConfig(config)
-      let client = try Client.newWithSigner(config: chainConfig, signer: signer)
+      let client = try Client.newWithSigner(config: chainConfig, signer: signer, transport: self.transport)
       let clientId = self.nextClientId()
       self.clients[clientId] = client
       return clientId
@@ -120,7 +121,7 @@ public class MobModule: Module {
         throw MobModuleError.signerNotFound(signerAddress)
       }
       let chainConfig = try self.parseChainConfig(config)
-      let client = try Client.newWithCryptoSigner(config: chainConfig, signer: signer)
+      let client = try Client.newWithCryptoSigner(config: chainConfig, signer: signer, transport: self.transport)
       let clientId = self.nextClientId()
       self.clients[clientId] = client
       return clientId
@@ -231,7 +232,7 @@ public class MobModule: Module {
         description: description
       )
       let chainConfig = try self.parseChainConfig(config)
-      try mgr.activate(metadata: metadata, config: chainConfig)
+      try mgr.activate(metadata: metadata, config: chainConfig, transport: self.transport)
     }
 
     AsyncFunction("sessionExport") { (sessionId: String) -> [UInt8] in
@@ -242,7 +243,7 @@ public class MobModule: Module {
 
     AsyncFunction("sessionRestore") { (data: [UInt8], config: [String: Any]) -> String in
       let chainConfig = try self.parseChainConfig(config)
-      let mgr = try MobSessionManager.restore(data: Data(data), config: chainConfig)
+      let mgr = try MobSessionManager.restore(data: Data(data), config: chainConfig, transport: self.transport)
       let sessionId = self.nextSessionId()
       self.sessionManagers[sessionId] = mgr
       return sessionId

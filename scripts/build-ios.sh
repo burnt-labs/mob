@@ -13,17 +13,20 @@ echo "Building mob for iOS..."
 # Ensure Rust targets are installed
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim 2>/dev/null || true
 
+# Features for iOS builds (exclude std-transport — native Swift transport is used instead)
+IOS_FEATURES="rpc-client,uniffi-bindings,rust-signer"
+
 # Build static library for device (arm64)
 echo "Building for aarch64-apple-ios..."
-cargo build --release --target aarch64-apple-ios -p mob
+cargo build --release --target aarch64-apple-ios -p mob --no-default-features --features "$IOS_FEATURES"
 
 # Build static library for simulator (arm64)
 echo "Building for aarch64-apple-ios-sim..."
-cargo build --release --target aarch64-apple-ios-sim -p mob
+cargo build --release --target aarch64-apple-ios-sim -p mob --no-default-features --features "$IOS_FEATURES"
 
 # Generate Swift bindings using the macOS build (bindings are platform-independent)
 echo "Generating Swift bindings..."
-cargo build --release --target aarch64-apple-darwin -p mob
+cargo build --release --target aarch64-apple-darwin -p mob --no-default-features --features "$IOS_FEATURES"
 cargo run --bin uniffi-bindgen generate \
   --library target/aarch64-apple-darwin/release/libmob.dylib \
   --language swift \

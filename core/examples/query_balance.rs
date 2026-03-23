@@ -1,4 +1,5 @@
-use mob::{ChainConfig, Client, RustSigner};
+use mob::{ChainConfig, Client, HttpTransport, RustSigner, UreqTransport};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,8 +12,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "xion".to_string(),
     );
 
+    let transport: Arc<dyn HttpTransport> = Arc::new(UreqTransport::new());
+
     // Create client
-    let client = Client::new(config)?;
+    let client = Client::new(config, transport)?;
     println!("Connected to chain: {}\n", client.config().chain_id);
 
     // Address to query (can be from environment or use a signer)

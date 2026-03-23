@@ -9,12 +9,14 @@ import uniffi.mob.Message
 import uniffi.mob.MobSessionManager
 import uniffi.mob.RustSigner
 import uniffi.mob.SessionMetadata
+import com.burnt.mob.NativeHttpTransport
 
 class MobModule : Module() {
     // In-memory registries
     private val signers = mutableMapOf<String, RustSigner>()
     private val clients = mutableMapOf<String, Client>()
     private val sessionManagers = mutableMapOf<String, MobSessionManager>()
+    private val transport = NativeHttpTransport()
     private var clientCounter = 0
     private var sessionCounter = 0
 
@@ -55,7 +57,7 @@ class MobModule : Module() {
 
         AsyncFunction("createClient") { config: Map<String, Any?> ->
             val chainConfig = parseChainConfig(config)
-            val client = Client(chainConfig)
+            val client = Client(chainConfig, transport)
             val clientId = nextClientId()
             clients[clientId] = client
             clientId
@@ -65,7 +67,7 @@ class MobModule : Module() {
             val signer = signers[signerAddress]
                 ?: throw IllegalArgumentException("Signer not found: $signerAddress")
             val chainConfig = parseChainConfig(config)
-            val client = Client.newWithSigner(chainConfig, signer)
+            val client = Client.newWithSigner(chainConfig, signer, transport)
             val clientId = nextClientId()
             clients[clientId] = client
             clientId

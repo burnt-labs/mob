@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 #[cfg(feature = "rpc-client")]
 use crate::client::Client;
 use crate::error::{MobError, Result};
+use crate::http_transport::HttpTransport;
 #[cfg(feature = "rust-signer")]
 use crate::rust_signer::RustSigner;
 use crate::session::SessionMetadata;
@@ -92,7 +93,12 @@ impl MobSessionManager {
     ///
     /// Creates a `Client` with the session signer attached. After this call,
     /// `client()` returns a usable signing client.
-    pub fn activate(&self, metadata: SessionMetadata, config: ChainConfig) -> Result<()> {
+    pub fn activate(
+        &self,
+        metadata: SessionMetadata,
+        config: ChainConfig,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<()> {
         metadata.validate()?;
 
         let mut state = self
@@ -110,7 +116,7 @@ impl MobSessionManager {
             })?
             .clone();
 
-        let client = Client::new_with_signer(config, signer)?;
+        let client = Client::new_with_signer(config, signer, transport)?;
         state.metadata = Some(metadata);
         state.client = Some(Arc::new(client));
 
@@ -153,7 +159,11 @@ impl MobSessionManager {
     /// Recreates the signer and client. Returns an error if the session is expired
     /// or the data is malformed.
     #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
-    pub fn restore(data: Vec<u8>, config: ChainConfig) -> Result<Self> {
+    pub fn restore(
+        data: Vec<u8>,
+        config: ChainConfig,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<Self> {
         if data.len() < 34 {
             return Err(MobError::InvalidInput("Export data too short".to_string()));
         }
@@ -177,7 +187,7 @@ impl MobSessionManager {
         let signer = RustSigner::from_private_key(private_key, &config.address_prefix)?;
         let signer_arc = Arc::new(signer);
 
-        let client = Client::new_with_signer(config.clone(), signer_arc.clone())?;
+        let client = Client::new_with_signer(config.clone(), signer_arc.clone(), transport)?;
 
         Ok(Self {
             address_prefix: config.address_prefix,
@@ -280,6 +290,22 @@ impl MobSessionManager {
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 mod tests {
     use super::*;
+    use crate::http_transport::{HttpTransport, TransportError};
+
+    struct MockTransport;
+    impl HttpTransport for MockTransport {
+        fn post(
+            &self,
+            _url: String,
+            _body: Vec<u8>,
+        ) -> std::result::Result<Vec<u8>, TransportError> {
+            Err(TransportError::NetworkError("mock transport".to_string()))
+        }
+    }
+
+    fn mock_transport() -> Arc<dyn HttpTransport> {
+        Arc::new(MockTransport)
+    }
 
     #[test]
     fn test_session_manager_creation() {
@@ -326,7 +352,7 @@ mod tests {
             "https://rpc.xion-testnet-1.burnt.com:443",
             "xion",
         );
-        let result = mgr.activate(metadata, config);
+        let result = mgr.activate(metadata, config, mock_transport());
         assert!(result.is_err());
     }
 
@@ -383,17 +409,19 @@ mod tests {
         );
 
         // Too short
-        assert!(MobSessionManager::restore(vec![1, 2, 3], config.clone()).is_err());
+        assert!(
+            MobSessionManager::restore(vec![1, 2, 3], config.clone(), mock_transport()).is_err()
+        );
 
         // Wrong version
         let bad = vec![0xFF; 34];
-        assert!(MobSessionManager::restore(bad, config.clone()).is_err());
+        assert!(MobSessionManager::restore(bad, config.clone(), mock_transport()).is_err());
 
         // Correct version but invalid JSON
         let mut bad2 = vec![EXPORT_VERSION];
         bad2.extend_from_slice(&[1u8; 32]); // 32-byte "key"
         bad2.push(b'{'); // broken JSON
-        assert!(MobSessionManager::restore(bad2, config).is_err());
+        assert!(MobSessionManager::restore(bad2, config, mock_transport()).is_err());
     }
 
     #[test]

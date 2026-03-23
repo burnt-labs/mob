@@ -7,38 +7,37 @@ This example demonstrates how to:
 - Check node sync status
 """
 
-import asyncio
-from mob import ChainConfig, Client
+from mob import ChainConfig, Client, NativeHttpTransport
 
 
-async def main():
+def main():
     # Create chain configuration for XION testnet-2
     config = ChainConfig(
         chain_id="xion-testnet-2",
         rpc_endpoint="https://rpc.xion-testnet-2.burnt.com:443",
-        bech32_prefix="xion"
+        address_prefix="xion",
     )
 
-    # Create RPC client
-    print("🔗 Connecting to XION testnet...")
-    client = await Client.new(config)
+    # Create RPC client with platform-native HTTP transport
+    print("Connecting to XION testnet...")
+    transport = NativeHttpTransport()
+    client = Client(config, transport)
 
     # Query the latest block height
-    print("\n📊 Querying blockchain information...")
-    height = await client.get_height()
-    print(f"✅ Current block height: {height}")
+    print("\nQuerying blockchain information...")
+    height = client.get_height()
+    print(f"Current block height: {height}")
 
     # Check sync status
-    is_synced = await client.is_synced()
-    sync_status = "✅ Synced" if is_synced else "⏳ Syncing"
-    print(f"{sync_status}")
+    is_synced = client.is_synced()
+    print(f"Synced: {is_synced}")
 
     # Get chain ID
-    chain_id = await client.get_chain_id()
-    print(f"⛓️  Chain ID: {chain_id}")
+    chain_id = client.get_chain_id()
+    print(f"Chain ID: {chain_id}")
 
-    print("\n✨ Query complete!")
+    print("\nQuery complete.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

@@ -19,7 +19,10 @@ name = "uniffi-bindgen"
 path = "../uniffi-bindgen.rs"
 
 [features]
-default = ["rpc-client", "uniffi-bindings", "rust-signer"]
+default = ["rpc-client", "uniffi-bindings", "rust-signer", "std-transport"]
+# Provides an in-process HTTP transport using ureq (for Rust-only usage, examples, and tests).
+# Not needed when native code provides the transport (iOS/Android).
+std-transport = ["ureq"]
 # RPC client with tokio runtime - for native FFI (Python, Ruby, Kotlin, Swift)
 rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc", "tonic"]
 # UniFFI bindings - for Python, Ruby, Kotlin, Swift
@@ -38,7 +41,7 @@ xion-types = { git = "https://github.com/burnt-labs/xion-types", features = ["xi
 cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
 tendermint = "0.37"
 # tendermint-rpc - optional for WASM
-tendermint-rpc = { version = "0.37", features = ["http-client"], optional = true }
+tendermint-rpc = { version = "0.37", optional = true }
 
 # Async runtime - optional for WASM
 tokio = { version = "1", features = ["full"], optional = true }
@@ -58,6 +61,9 @@ sha2 = { version = "0.10", optional = true }
 
 # Random bytes (already a transitive dep via k256/bip32)
 getrandom = "0.2"
+
+# HTTP transport for Rust-only usage (optional, not needed for mobile)
+ureq = { version = "2", optional = true }
 
 # Utilities
 hex = "0.4"

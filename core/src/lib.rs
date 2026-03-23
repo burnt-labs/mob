@@ -16,7 +16,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use mob::{Client, RustSigner, ChainConfig, Coin};
+//! use mob::{Client, RustSigner, ChainConfig, Coin, HttpTransport, UreqTransport};
 //! use std::sync::Arc;
 //!
 //! #[tokio::main]
@@ -28,8 +28,11 @@
 //!         "xion".to_string()
 //!     );
 //!
+//!     // Create transport (use UreqTransport for Rust, or native transport on mobile)
+//!     let transport: Arc<dyn HttpTransport> = Arc::new(UreqTransport::new());
+//!
 //!     // Create RPC client
-//!     let mut client = Client::new(config)?;
+//!     let mut client = Client::new_with_transport(config, transport);
 //!
 //!     // Create signer from mnemonic
 //!     let signer = RustSigner::from_mnemonic(
@@ -58,12 +61,17 @@ pub mod account;
 pub mod client;
 pub mod crypto_signer;
 pub mod error;
+pub mod http_transport;
+#[cfg(feature = "rpc-client")]
+pub mod native_rpc_client;
 #[cfg(feature = "rust-signer")]
 pub mod rust_signer;
 pub mod session;
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 pub mod session_manager;
 pub mod session_signer;
+#[cfg(feature = "std-transport")]
+pub mod std_transport;
 pub mod transaction;
 pub mod types;
 
@@ -74,12 +82,15 @@ pub use client::Client;
 pub use cosmrs::Any;
 pub use crypto_signer::{CryptoSigner, SignerError};
 pub use error::{MobError, Result};
+pub use http_transport::{HttpTransport, TransportError};
 #[cfg(feature = "rust-signer")]
 pub use rust_signer::RustSigner;
 pub use session::SessionMetadata;
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 pub use session_manager::MobSessionManager;
 pub use session_signer::SessionSigner;
+#[cfg(feature = "std-transport")]
+pub use std_transport::UreqTransport;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
     AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, SignerInfo,

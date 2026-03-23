@@ -9,14 +9,15 @@
 # - Check account balances
 
 require_relative '../lib/mob'
+require_relative '../lib/native_http_transport'
 
 def main
   puts "=" * 60
-  puts "🔐 Mob Ruby Client - Account Query Example"
+  puts "Mob Ruby Client - Account Query Example"
   puts "=" * 60
 
   # Create a signer from mnemonic (example - replace with your own)
-  puts "\n1️⃣  Creating signer from mnemonic..."
+  puts "\n1. Creating signer from mnemonic..."
   mnemonic = "quiz cattle knock bacon million abstract word reunion educate antenna " \
              "put fitness slide dash point basket jaguar fun humor multiply " \
              "emotion rescue brand pull"
@@ -29,10 +30,10 @@ def main
 
   # Get the account address
   address = signer.address
-  puts "   ✅ Address: #{address}"
+  puts "   Address: #{address}"
 
   # Create client and query account info
-  puts "\n2️⃣  Connecting to XION testnet..."
+  puts "\n2. Connecting to XION testnet..."
   config = Mob::ChainConfig.new(
     chain_id: "xion-testnet-2",
     rpc_endpoint: "https://rpc.xion-testnet-2.burnt.com:443",
@@ -41,36 +42,37 @@ def main
     coin_type: 118,
     gas_price: "0.025"
   )
-  client = Mob::Client.new(config)
-  puts "   ✅ Client connected"
+  transport = Mob::NativeHttpTransport.new
+  client = Mob::Client.new(config, transport)
+  puts "   Client connected"
 
   # Query account information
-  puts "\n3️⃣  Querying account information for #{address}..."
+  puts "\n3. Querying account information for #{address}..."
   begin
     account_info = client.get_account(address)
-    puts "   ✅ Account found!"
+    puts "   Account found!"
     puts "      Account number: #{account_info.account_number}"
     puts "      Sequence: #{account_info.sequence}"
   rescue => e
-    puts "   ❌ Error querying account: #{e.message}"
+    puts "   Error querying account: #{e.message}"
   end
 
   # Query account balance
-  puts "\n4️⃣  Querying balance..."
+  puts "\n4. Querying balance..."
   begin
     balance = client.get_balance(address, "uxion")
     amount_xion = balance.amount.to_i / 1_000_000.0
-    puts "   ✅ Balance: #{balance.amount} uxion (#{format('%.6f', amount_xion)} XION)"
+    puts "   Balance: #{balance.amount} uxion (#{format('%.6f', amount_xion)} XION)"
   rescue => e
-    puts "   ❌ Error querying balance: #{e.message}"
+    puts "   Error querying balance: #{e.message}"
   end
 
   puts "\n" + "=" * 60
-  puts "✨ Query complete!"
+  puts "Query complete."
   puts "=" * 60
 
 rescue => e
-  puts "\n❌ Error: #{e.message}"
+  puts "\nError: #{e.message}"
   puts e.backtrace.first(5).join("\n")
   exit 1
 end
