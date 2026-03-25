@@ -142,7 +142,7 @@ impl SessionSigner {
     /// Wrap messages in MsgExec for authz execution
     pub fn wrap_in_msg_exec(&self, messages: Vec<Any>) -> Result<Any> {
         use prost::Message;
-        use xion_types::cosmos::authz::v1beta1::MsgExec;
+        use xion_types::types::cosmos_authz_v1beta1::MsgExec;
 
         // Validate session before wrapping
         self.metadata.validate()?;
@@ -220,7 +220,7 @@ impl SessionSigner {
 
         // Encode SignDoc to protobuf bytes
         let mut sign_doc_bytes = Vec::new();
-        let sign_doc_proto = xion_types::cosmos::tx::v1beta1::SignDoc {
+        let sign_doc_proto = xion_types::types::cosmos_tx_v1beta1::SignDoc {
             body_bytes: sign_doc.body_bytes.clone(),
             auth_info_bytes: sign_doc.auth_info_bytes.clone(),
             chain_id: sign_doc.chain_id.to_string(),
@@ -237,7 +237,7 @@ impl SessionSigner {
             .map_err(|e| MobError::Signing(e.to_string()))?;
 
         // Create raw transaction using proto directly
-        let tx_raw_proto = xion_types::cosmos::tx::v1beta1::TxRaw {
+        let tx_raw_proto = xion_types::types::cosmos_tx_v1beta1::TxRaw {
             body_bytes: sign_doc.body_bytes.clone(),
             auth_info_bytes: sign_doc.auth_info_bytes.clone(),
             signatures: vec![signature],
@@ -410,7 +410,7 @@ mod tests {
 
         // Verify the wrapped message can be decoded
         use prost::Message;
-        use xion_types::cosmos::authz::v1beta1::MsgExec;
+        use xion_types::types::cosmos_authz_v1beta1::MsgExec;
 
         let decoded = MsgExec::decode(wrapped.value.as_slice());
         assert!(decoded.is_ok());
@@ -488,7 +488,7 @@ mod tests {
 
         // Decode and verify the transaction structure
         use prost::Message;
-        use xion_types::cosmos::tx::v1beta1::TxRaw;
+        use xion_types::types::cosmos_tx_v1beta1::TxRaw;
 
         let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
         assert!(!tx_raw.body_bytes.is_empty());
@@ -496,7 +496,7 @@ mod tests {
         assert_eq!(tx_raw.signatures.len(), 1);
 
         // Decode body and verify it contains MsgExec
-        use xion_types::cosmos::tx::v1beta1::TxBody;
+        use xion_types::types::cosmos_tx_v1beta1::TxBody;
         let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
         assert_eq!(tx_body.messages.len(), 1);
         assert_eq!(
@@ -605,7 +605,7 @@ mod tests {
             .expect("Failed to wrap messages");
 
         use prost::Message;
-        use xion_types::cosmos::authz::v1beta1::MsgExec;
+        use xion_types::types::cosmos_authz_v1beta1::MsgExec;
 
         let decoded = MsgExec::decode(wrapped.value.as_slice()).expect("Failed to decode MsgExec");
         assert_eq!(decoded.msgs.len(), 3);
@@ -634,7 +634,7 @@ mod tests {
         assert_eq!(wrapped.type_url, "/cosmos.authz.v1beta1.MsgExec");
 
         use prost::Message;
-        use xion_types::cosmos::authz::v1beta1::MsgExec;
+        use xion_types::types::cosmos_authz_v1beta1::MsgExec;
 
         let decoded = MsgExec::decode(wrapped.value.as_slice()).expect("Failed to decode");
         assert_eq!(decoded.msgs.len(), 0);
@@ -715,7 +715,7 @@ mod tests {
             .expect("Failed to sign transaction");
 
         use prost::Message;
-        use xion_types::cosmos::tx::v1beta1::{TxBody, TxRaw};
+        use xion_types::types::cosmos_tx_v1beta1::{TxBody, TxRaw};
 
         let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
         let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
@@ -775,7 +775,7 @@ mod tests {
             .expect("Failed to sign transaction");
 
         use prost::Message;
-        use xion_types::cosmos::tx::v1beta1::TxRaw;
+        use xion_types::types::cosmos_tx_v1beta1::TxRaw;
 
         let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
         assert_eq!(tx_raw.signatures.len(), 1);
@@ -880,8 +880,8 @@ mod tests {
             .expect("Failed to sign transaction");
 
         use prost::Message;
-        use xion_types::cosmos::authz::v1beta1::MsgExec;
-        use xion_types::cosmos::tx::v1beta1::{TxBody, TxRaw};
+        use xion_types::types::cosmos_authz_v1beta1::MsgExec;
+        use xion_types::types::cosmos_tx_v1beta1::{TxBody, TxRaw};
 
         let tx_raw = TxRaw::decode(tx_bytes.as_slice()).expect("Failed to decode TxRaw");
         let tx_body = TxBody::decode(tx_raw.body_bytes.as_slice()).expect("Failed to decode body");
