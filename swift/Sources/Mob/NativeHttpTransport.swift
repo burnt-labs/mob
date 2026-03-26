@@ -5,8 +5,10 @@ import Foundation
 /// Uses the platform's native TLS stack (Security.framework) which properly
 /// handles the system CA bundle, avoiding the `UnknownIssuer` errors that
 /// occur with rustls-native-certs on iOS.
-class NativeHttpTransport: HttpTransport {
-    func post(url: String, body: Data) throws -> Data {
+public final class NativeHttpTransport: HttpTransport, @unchecked Sendable {
+    public init() {}
+
+    public func post(url: String, body: Data) throws -> Data {
         guard let requestUrl = URL(string: url) else {
             throw TransportError.RequestFailed(message: "Invalid URL: \(url)")
         }

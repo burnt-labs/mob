@@ -1,59 +1,26 @@
 #!/bin/bash
 set -e
 
-# Script to generate Swift bindings and XCFramework for mob library
-# Run this from the project root directory
+# Script to generate the Swift package artifacts from the iOS build flow.
+# Run this from the project root directory.
 
-echo "🔨 Building Rust library for macOS arm64..."
-cargo build --release --target aarch64-apple-darwin -p mob
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RN_IOS_DIR="$ROOT_DIR/react-native/ios"
+SWIFT_DIR="$ROOT_DIR/swift"
 
-echo "📝 Generating Swift bindings..."
-cargo run --bin uniffi-bindgen generate \
-  --library target/aarch64-apple-darwin/release/libmob.dylib \
-  --language swift \
-  --out-dir swift/lib
+echo "🔨 Building iOS artifacts..."
+"$ROOT_DIR/scripts/build-ios.sh"
 
-echo "📦 Creating XCFramework..."
-# Create build directory
-mkdir -p swift/xcframework-build/macos
-
-# Copy library and headers
-cp target/aarch64-apple-darwin/release/libmob.dylib swift/xcframework-build/macos/
-cp swift/lib/mobFFI.h swift/xcframework-build/macos/
-cp swift/lib/mobFFI.modulemap swift/xcframework-build/macos/
-
-# Remove old XCFramework if exists
-rm -rf swift/lib/libmob.xcframework
-
-# Create XCFramework
-cd swift/xcframework-build/macos
-xcodebuild -create-xcframework \
-  -library libmob.dylib \
-  -headers . \
-  -output ../../lib/libmob.xcframework
-cd ../../..
-
-# Copy Swift source to Sources directory
-echo "📋 Setting up Swift Package structure..."
-mkdir -p swift/Sources/Mob
-cp swift/lib/mob.swift swift/Sources/Mob/
-
-# Create MobFFI module with headers
-mkdir -p swift/Sources/MobFFI/include
-cp swift/lib/mobFFI.h swift/Sources/MobFFI/include/
-cp swift/lib/mobFFI.modulemap swift/Sources/MobFFI/include/module.modulemap
-
-# Copy library for development use
-cp target/aarch64-apple-darwin/release/libmob.dylib swift/lib/
-
-# Clean up build directory
-rm -rf swift/xcframework-build
+echo "📋 Syncing Swift package artifacts..."
+mkdir -p "$SWIFT_DIR/lib" "$SWIFT_DIR/Sources/Mob"
+rsync -a --delete "$RN_IOS_DIR/Frameworks/libmob.xcframework/" "$SWIFT_DIR/lib/libmob.xcframework/"
+cp "$RN_IOS_DIR/generated/mob.swift" "$SWIFT_DIR/Sources/Mob/mob.swift"
 
 echo "✅ Swift bindings and XCFramework created successfully!"
 echo ""
-echo "Build and test with:"
-echo "  cd swift && swift build"
-echo "  cd swift && swift test"
+echo "Package artifacts are ready under:"
+echo "  swift/Sources/Mob/"
+echo "  swift/lib/libmob.xcframework"
 echo ""
 echo "The XCFramework is located at:"
 echo "  swift/lib/libmob.xcframework"

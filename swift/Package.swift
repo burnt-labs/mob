@@ -4,7 +4,6 @@ import PackageDescription
 let package = Package(
     name: "Mob",
     platforms: [
-        .macOS(.v13),
         .iOS(.v16)
     ],
     products: [
@@ -14,23 +13,15 @@ let package = Package(
         ),
     ],
     targets: [
-        .target(
-            name: "MobFFI",
-            path: "Sources/MobFFI",
-            publicHeadersPath: "include",
-            cSettings: [
-                .headerSearchPath("include")
-            ]
-        ),
         .binaryTarget(
             name: "libmob",
             path: "lib/libmob.xcframework"
         ),
         .target(
             name: "Mob",
-            dependencies: ["MobFFI", "libmob"],
+            dependencies: ["libmob"],
             path: "Sources/Mob",
-            sources: ["mob.swift"]
+            sources: ["mob.swift", "NativeHttpTransport.swift", "Compat.swift"]
         ),
         .testTarget(
             name: "MobTests",

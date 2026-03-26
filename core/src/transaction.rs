@@ -1,6 +1,6 @@
 use crate::{
-    crypto_signer::CryptoSigner,
     error::{MobError, Result},
+    signing_strategy::TransactionSigner,
     types::{Coin, Fee},
 };
 use cosmrs::{
@@ -95,7 +95,7 @@ impl TransactionBuilder {
     /// Build and sign the transaction
     pub fn sign(
         &self,
-        signer: &dyn CryptoSigner,
+        signer: &dyn TransactionSigner,
         account_number: u64,
         sequence: u64,
     ) -> Result<Vec<u8>> {
@@ -124,7 +124,7 @@ impl TransactionBuilder {
     /// Sign a transaction using only CryptoSigner trait methods
     fn sign_with_trait(
         &self,
-        signer: &dyn CryptoSigner,
+        signer: &dyn TransactionSigner,
         sign_doc: &SignDoc,
         account_number: u64,
     ) -> Result<tx::Raw> {
@@ -168,7 +168,7 @@ impl TransactionBuilder {
 
     fn create_auth_info(
         &self,
-        signer: &dyn CryptoSigner,
+        signer: &dyn TransactionSigner,
         fee: &Fee,
         sequence: u64,
     ) -> Result<tx::AuthInfo> {

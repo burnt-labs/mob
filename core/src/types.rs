@@ -35,6 +35,20 @@ impl From<cosmrs::Coin> for Coin {
     }
 }
 
+/// Contract execute message for atomic batch execution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
+pub struct ContractMsg {
+    pub msg: Vec<u8>,
+    pub funds: Vec<Coin>,
+}
+
+impl ContractMsg {
+    pub fn new(msg: Vec<u8>, funds: Vec<Coin>) -> Self {
+        Self { msg, funds }
+    }
+}
+
 /// Account information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]

@@ -39,16 +39,6 @@ ruby/lib/mob.rb
 ruby/lib/libmob.dylib
 ruby/lib/*.so
 ruby/lib/*.dll
-swift/lib/mob.swift
-swift/lib/mobFFI.h
-swift/lib/mobFFI.modulemap
-swift/lib/libmob.dylib
-swift/lib/*.so
-swift/lib/*.dll
-swift/lib/*.xcframework
-swift/Sources/*/include/mobFFI.h
-swift/Sources/*/include/module.modulemap
-
 # Python
 __pycache__/
 *.py[cod]

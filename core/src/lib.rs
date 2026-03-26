@@ -70,6 +70,7 @@ pub mod session;
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 pub mod session_manager;
 pub mod session_signer;
+pub mod signing_strategy;
 #[cfg(feature = "std-transport")]
 pub mod std_transport;
 pub mod transaction;
@@ -89,12 +90,13 @@ pub use session::SessionMetadata;
 #[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
 pub use session_manager::MobSessionManager;
 pub use session_signer::SessionSigner;
+pub use signing_strategy::{BasicSigningStrategy, TransactionSigner};
 #[cfg(feature = "std-transport")]
 pub use std_transport::UreqTransport;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
-    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, SignerInfo,
-    TxResponse,
+    AccountInfo, BroadcastMode, ChainConfig, Coin, ContractMsg, Fee, Message, SignOptions,
+    SignerInfo, TxResponse,
 };
 
 // UniFFI setup - only when uniffi-bindings feature is enabled

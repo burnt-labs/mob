@@ -16,4 +16,6 @@ lib/*.dll
 lib/mob.swift
 lib/mobFFI.h
 lib/mobFFI.modulemap
-lib/*.xcframework
+lib/*
+!lib/libmob.xcframework/
+!lib/libmob.xcframework/**
