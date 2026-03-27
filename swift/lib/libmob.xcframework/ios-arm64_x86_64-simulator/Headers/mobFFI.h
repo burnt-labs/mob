@@ -344,6 +344,21 @@ void uniffi_mob_fn_method_client_attach_signer(uint64_t ptr, uint64_t _signer, R
 RustBuffer uniffi_mob_fn_method_client_build_execute_contract_message(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
+RustBuffer uniffi_mob_fn_method_client_build_instantiate_contract_message(uint64_t ptr, RustBuffer admin, uint64_t code_id, RustBuffer label, RustBuffer msg, RustBuffer funds, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_SEND_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_SEND_MESSAGE
+RustBuffer uniffi_mob_fn_method_client_build_send_message(uint64_t ptr, RustBuffer to_address, RustBuffer amount, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
+RustBuffer uniffi_mob_fn_method_client_build_store_code_message(uint64_t ptr, RustBuffer wasm_byte_code, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer memo, RustBuffer gas_limit, RustCallStatus *_Nonnull out_status
@@ -898,6 +913,24 @@ uint16_t uniffi_mob_checksum_method_client_attach_signer(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
 uint16_t uniffi_mob_checksum_method_client_build_execute_contract_message(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
+uint16_t uniffi_mob_checksum_method_client_build_instantiate_contract_message(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_SEND_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_SEND_MESSAGE
+uint16_t uniffi_mob_checksum_method_client_build_send_message(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
+uint16_t uniffi_mob_checksum_method_client_build_store_code_message(void
     
 );
 #endif

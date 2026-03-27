@@ -575,6 +575,21 @@ public protocol ClientProtocol: AnyObject, Sendable {
     func buildExecuteContractMessage(contractAddress: String, msg: Data, funds: [Coin]) throws  -> Message
     
     /**
+     * Build an FFI-safe instantiate-contract message for use with `sign_and_broadcast_multi`.
+     */
+    func buildInstantiateContractMessage(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin]) throws  -> Message
+    
+    /**
+     * Build an FFI-safe send message for use with `sign_and_broadcast_multi`.
+     */
+    func buildSendMessage(toAddress: String, amount: [Coin]) throws  -> Message
+    
+    /**
+     * Build an FFI-safe store-code message for use with `sign_and_broadcast_multi`.
+     */
+    func buildStoreCodeMessage(wasmByteCode: Data) throws  -> Message
+    
+    /**
      * Execute a CosmWasm contract (synchronous wrapper)
      */
     func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
@@ -794,6 +809,47 @@ open func buildExecuteContractMessage(contractAddress: String, msg: Data, funds:
         FfiConverterString.lower(contractAddress),
         FfiConverterData.lower(msg),
         FfiConverterSequenceTypeCoin.lower(funds),$0
+    )
+})
+}
+    
+    /**
+     * Build an FFI-safe instantiate-contract message for use with `sign_and_broadcast_multi`.
+     */
+open func buildInstantiateContractMessage(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin])throws  -> Message  {
+    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
+    uniffi_mob_fn_method_client_build_instantiate_contract_message(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(admin),
+        FfiConverterUInt64.lower(codeId),
+        FfiConverterOptionString.lower(label),
+        FfiConverterData.lower(msg),
+        FfiConverterSequenceTypeCoin.lower(funds),$0
+    )
+})
+}
+    
+    /**
+     * Build an FFI-safe send message for use with `sign_and_broadcast_multi`.
+     */
+open func buildSendMessage(toAddress: String, amount: [Coin])throws  -> Message  {
+    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
+    uniffi_mob_fn_method_client_build_send_message(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(toAddress),
+        FfiConverterSequenceTypeCoin.lower(amount),$0
+    )
+})
+}
+    
+    /**
+     * Build an FFI-safe store-code message for use with `sign_and_broadcast_multi`.
+     */
+open func buildStoreCodeMessage(wasmByteCode: Data)throws  -> Message  {
+    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
+    uniffi_mob_fn_method_client_build_store_code_message(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(wasmByteCode),$0
     )
 })
 }
@@ -3696,6 +3752,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_build_execute_contract_message() != 30392) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mob_checksum_method_client_build_instantiate_contract_message() != 33987) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mob_checksum_method_client_build_send_message() != 64106) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mob_checksum_method_client_build_store_code_message() != 20893) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_execute_contract() != 20103) {
