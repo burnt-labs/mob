@@ -15,7 +15,7 @@ use crate::{
     session_signer::SessionSigner,
     signing_strategy::{BasicSigningStrategy, TransactionSigner},
     transaction::TransactionBuilder,
-    types::{AccountInfo, BroadcastMode, ChainConfig, Coin, ContractMsg, Message, TxResponse},
+    types::{AccountInfo, BroadcastMode, ChainConfig, Coin, Message, TxResponse},
 };
 use cosmrs::AccountId;
 use std::{str::FromStr, sync::Arc};
@@ -109,25 +109,14 @@ impl Client {
         ))
     }
 
-    /// Execute multiple CosmWasm messages against the same contract in one transaction.
-    pub fn execute_contract_batch(
+    /// Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
+    pub fn build_execute_contract_message(
         &self,
         contract_address: String,
-        messages: Vec<ContractMsg>,
-        memo: Option<String>,
-        gas_limit: Option<u64>,
-    ) -> Result<TxResponse> {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
-
-        runtime.block_on(self.execute_contract_batch_internal(
-            &contract_address,
-            messages,
-            memo,
-            gas_limit,
-        ))
+        msg: Vec<u8>,
+        funds: Vec<Coin>,
+    ) -> Result<Message> {
+        self.build_execute_contract_message_internal(&contract_address, &msg, funds)
     }
 
     /// Store a CosmWasm contract (synchronous wrapper)
@@ -749,34 +738,24 @@ impl Client {
             .await
     }
 
-    async fn execute_contract_batch_internal(
+    fn build_execute_contract_message_internal(
         &self,
         contract_address: &str,
-        messages: Vec<ContractMsg>,
-        memo: Option<String>,
-        gas_limit: Option<u64>,
-    ) -> Result<TxResponse> {
-        if messages.is_empty() {
-            return Err(MobError::InvalidInput(
-                "execute_contract_batch requires at least one message".to_string(),
-            ));
-        }
-
+        msg: &[u8],
+        funds: Vec<Coin>,
+    ) -> Result<Message> {
         let sender = self.logical_sender_address()?;
-        let execute_messages = messages
-            .into_iter()
-            .map(|message| {
-                crate::transaction::messages::msg_execute_contract(
-                    &sender,
-                    contract_address,
-                    &message.msg,
-                    message.funds,
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let execute_msg = crate::transaction::messages::msg_execute_contract(
+            &sender,
+            contract_address,
+            msg,
+            funds,
+        )?;
 
-        self.sign_and_broadcast_messages(execute_messages, memo, gas_limit)
-            .await
+        Ok(Message {
+            type_url: execute_msg.type_url,
+            value: execute_msg.value,
+        })
     }
 
     /// Store a CosmWasm contract (internal)
@@ -1340,53 +1319,29 @@ mod tests {
 
     #[test]
     #[cfg(feature = "rust-signer")]
-    fn test_session_client_wraps_batch_contract_messages_in_msg_exec() {
+    fn test_build_execute_contract_message_uses_logical_sender() {
         use prost::Message as ProstMessage;
 
         let (client, metadata) = build_session_test_client();
 
-        let batch = vec![
-            ContractMsg::new(br#"{"join":{}}"#.to_vec(), vec![]),
-            ContractMsg::new(br#"{"accept":{}}"#.to_vec(), vec![Coin::new("uxion", "42")]),
-        ];
+        let execute_message = client
+            .build_execute_contract_message_internal(
+                &metadata.granter,
+                br#"{"join":{}}"#,
+                vec![Coin::new("uxion", "42")],
+            )
+            .expect("message");
 
-        let sender = client.logical_sender_address().expect("sender");
-        let execute_messages = batch
-            .into_iter()
-            .map(|message| {
-                crate::transaction::messages::msg_execute_contract(
-                    &sender,
-                    &metadata.granter,
-                    &message.msg,
-                    message.funds,
-                )
-            })
-            .collect::<Result<Vec<_>>>()
-            .expect("execute messages");
+        assert_eq!(
+            execute_message.type_url,
+            "/cosmwasm.wasm.v1.MsgExecuteContract"
+        );
 
-        let wrapped = client
-            .transform_messages_for_signing(execute_messages)
-            .expect("wrapped");
-        assert_eq!(wrapped.len(), 1);
-        assert_eq!(wrapped[0].type_url, "/cosmos.authz.v1beta1.MsgExec");
-
-        let msg_exec =
-            xion_types::types::cosmos_authz_v1beta1::MsgExec::decode(wrapped[0].value.as_slice())
-                .expect("decode MsgExec");
-        assert_eq!(msg_exec.grantee, metadata.grantee);
-        assert_eq!(msg_exec.msgs.len(), 2);
-
-        let first = xion_types::types::cosmwasm_wasm_v1::MsgExecuteContract::decode(
-            msg_exec.msgs[0].value.as_slice(),
+        let inner = xion_types::types::cosmwasm_wasm_v1::MsgExecuteContract::decode(
+            execute_message.value.as_slice(),
         )
-        .expect("decode first inner message");
-        let second = xion_types::types::cosmwasm_wasm_v1::MsgExecuteContract::decode(
-            msg_exec.msgs[1].value.as_slice(),
-        )
-        .expect("decode second inner message");
-
-        assert_eq!(first.sender, metadata.granter);
-        assert_eq!(second.sender, metadata.granter);
+        .expect("decode inner message");
+        assert_eq!(inner.sender, metadata.granter);
     }
 
     #[test]

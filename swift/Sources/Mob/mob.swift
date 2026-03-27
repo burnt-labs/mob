@@ -570,14 +570,14 @@ public protocol ClientProtocol: AnyObject, Sendable {
     func attachSigner(signer: RustSigner) throws 
     
     /**
+     * Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
+     */
+    func buildExecuteContractMessage(contractAddress: String, msg: Data, funds: [Coin]) throws  -> Message
+    
+    /**
      * Execute a CosmWasm contract (synchronous wrapper)
      */
     func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
-    
-    /**
-     * Execute multiple CosmWasm messages against the same contract in one transaction.
-     */
-    func executeContractBatch(contractAddress: String, messages: [ContractMsg], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
     
     /**
      * Query account information (synchronous wrapper)
@@ -785,6 +785,20 @@ open func attachSigner(signer: RustSigner)throws   {try rustCallWithError(FfiCon
 }
     
     /**
+     * Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
+     */
+open func buildExecuteContractMessage(contractAddress: String, msg: Data, funds: [Coin])throws  -> Message  {
+    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
+    uniffi_mob_fn_method_client_build_execute_contract_message(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(contractAddress),
+        FfiConverterData.lower(msg),
+        FfiConverterSequenceTypeCoin.lower(funds),$0
+    )
+})
+}
+    
+    /**
      * Execute a CosmWasm contract (synchronous wrapper)
      */
 open func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
@@ -794,21 +808,6 @@ open func executeContract(contractAddress: String, msg: Data, funds: [Coin], mem
         FfiConverterString.lower(contractAddress),
         FfiConverterData.lower(msg),
         FfiConverterSequenceTypeCoin.lower(funds),
-        FfiConverterOptionString.lower(memo),
-        FfiConverterOptionUInt64.lower(gasLimit),$0
-    )
-})
-}
-    
-    /**
-     * Execute multiple CosmWasm messages against the same contract in one transaction.
-     */
-open func executeContractBatch(contractAddress: String, messages: [ContractMsg], memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
-    return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_execute_contract_batch(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(contractAddress),
-        FfiConverterSequenceTypeContractMsg.lower(messages),
         FfiConverterOptionString.lower(memo),
         FfiConverterOptionUInt64.lower(gasLimit),$0
     )
@@ -2701,61 +2700,6 @@ public func FfiConverterTypeCoin_lower(_ value: Coin) -> RustBuffer {
 
 
 /**
- * Contract execute message for atomic batch execution
- */
-public struct ContractMsg: Equatable, Hashable {
-    public var msg: Data
-    public var funds: [Coin]
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(msg: Data, funds: [Coin]) {
-        self.msg = msg
-        self.funds = funds
-    }
-
-    
-}
-
-#if compiler(>=6)
-extension ContractMsg: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeContractMsg: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContractMsg {
-        return
-            try ContractMsg(
-                msg: FfiConverterData.read(from: &buf), 
-                funds: FfiConverterSequenceTypeCoin.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: ContractMsg, into buf: inout [UInt8]) {
-        FfiConverterData.write(value.msg, into: &buf)
-        FfiConverterSequenceTypeCoin.write(value.funds, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeContractMsg_lift(_ buf: RustBuffer) throws -> ContractMsg {
-    return try FfiConverterTypeContractMsg.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeContractMsg_lower(_ value: ContractMsg) -> RustBuffer {
-    return FfiConverterTypeContractMsg.lower(value)
-}
-
-
-/**
  * Transaction fee information
  */
 public struct Fee: Equatable, Hashable {
@@ -3711,31 +3655,6 @@ fileprivate struct FfiConverterSequenceTypeCoin: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeContractMsg: FfiConverterRustBuffer {
-    typealias SwiftType = [ContractMsg]
-
-    public static func write(_ value: [ContractMsg], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeContractMsg.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ContractMsg] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [ContractMsg]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeContractMsg.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeMessage: FfiConverterRustBuffer {
     typealias SwiftType = [Message]
 
@@ -3776,10 +3695,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mob_checksum_method_client_attach_signer() != 61507) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_execute_contract() != 20103) {
+    if (uniffi_mob_checksum_method_client_build_execute_contract_message() != 30392) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_execute_contract_batch() != 63753) {
+    if (uniffi_mob_checksum_method_client_execute_contract() != 20103) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_get_account() != 2621) {

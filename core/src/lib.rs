@@ -95,8 +95,8 @@ pub use signing_strategy::{BasicSigningStrategy, TransactionSigner};
 pub use std_transport::UreqTransport;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
-    AccountInfo, BroadcastMode, ChainConfig, Coin, ContractMsg, Fee, Message, SignOptions,
-    SignerInfo, TxResponse,
+    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, SignerInfo,
+    TxResponse,
 };
 
 // UniFFI setup - only when uniffi-bindings feature is enabled

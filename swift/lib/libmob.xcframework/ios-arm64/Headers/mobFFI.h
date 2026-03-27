@@ -339,14 +339,14 @@ uint64_t uniffi_mob_fn_constructor_client_new_with_signer(RustBuffer config, uin
 void uniffi_mob_fn_method_client_attach_signer(uint64_t ptr, uint64_t _signer, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
+RustBuffer uniffi_mob_fn_method_client_build_execute_contract_message(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer memo, RustBuffer gas_limit, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT_BATCH
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT_BATCH
-RustBuffer uniffi_mob_fn_method_client_execute_contract_batch(uint64_t ptr, RustBuffer contract_address, RustBuffer messages, RustBuffer memo, RustBuffer gas_limit, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_GET_ACCOUNT
@@ -895,15 +895,15 @@ uint16_t uniffi_mob_checksum_method_client_attach_signer(void
     
 );
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
-uint16_t uniffi_mob_checksum_method_client_execute_contract(void
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
+uint16_t uniffi_mob_checksum_method_client_build_execute_contract_message(void
     
 );
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT_BATCH
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT_BATCH
-uint16_t uniffi_mob_checksum_method_client_execute_contract_batch(void
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
+uint16_t uniffi_mob_checksum_method_client_execute_contract(void
     
 );
 #endif
