@@ -35,4 +35,17 @@ impl HttpTransport for UreqTransport {
             .map_err(|e| TransportError::NetworkError(e.to_string()))?;
         Ok(buf)
     }
+
+    fn get(&self, url: String) -> Result<Vec<u8>, TransportError> {
+        let response = ureq::get(&url)
+            .call()
+            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
+
+        let mut buf = Vec::new();
+        response
+            .into_reader()
+            .read_to_end(&mut buf)
+            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
+        Ok(buf)
+    }
 }

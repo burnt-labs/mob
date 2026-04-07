@@ -14,12 +14,7 @@ import java.net.URI
  */
 class NativeHttpTransport : HttpTransport {
     override fun post(url: String, body: List<UByte>): List<UByte> {
-        val connection = try {
-            URI(url).toURL().openConnection() as HttpURLConnection
-        } catch (e: Exception) {
-            throw TransportError.RequestFailed("Invalid URL: $url")
-        }
-
+        val connection = openConnection(url)
         try {
             connection.requestMethod = "POST"
             connection.doOutput = true
@@ -28,18 +23,7 @@ class NativeHttpTransport : HttpTransport {
             val bodyBytes = ByteArray(body.size) { body[it].toByte() }
             connection.outputStream.use { it.write(bodyBytes) }
 
-            val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                val errorBody = try {
-                    connection.errorStream?.readBytes()?.decodeToString() ?: ""
-                } catch (_: Exception) { "" }
-                throw TransportError.RequestFailed(
-                    "HTTP $responseCode: $errorBody"
-                )
-            }
-
-            val responseBytes = connection.inputStream.use { it.readBytes() }
-            return responseBytes.map { it.toUByte() }
+            return readResponse(connection)
         } catch (e: TransportError) {
             throw e
         } catch (e: IOException) {
@@ -49,5 +33,40 @@ class NativeHttpTransport : HttpTransport {
         } finally {
             connection.disconnect()
         }
+    }
+
+    override fun get(url: String): List<UByte> {
+        val connection = openConnection(url)
+        try {
+            connection.requestMethod = "GET"
+            return readResponse(connection)
+        } catch (e: TransportError) {
+            throw e
+        } catch (e: IOException) {
+            throw TransportError.NetworkError(e.message ?: "Unknown network error")
+        } catch (e: Exception) {
+            throw TransportError.RequestFailed(e.message ?: "Unknown error")
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun openConnection(url: String): HttpURLConnection {
+        return try {
+            URI(url).toURL().openConnection() as HttpURLConnection
+        } catch (e: Exception) {
+            throw TransportError.RequestFailed("Invalid URL: $url")
+        }
+    }
+
+    private fun readResponse(connection: HttpURLConnection): List<UByte> {
+        val responseCode = connection.responseCode
+        if (responseCode !in 200..299) {
+            val errorBody = try {
+                connection.errorStream?.readBytes()?.decodeToString() ?: ""
+            } catch (_: Exception) { "" }
+            throw TransportError.RequestFailed("HTTP $responseCode: $errorBody")
+        }
+        return connection.inputStream.use { it.readBytes() }.map { it.toUByte() }
     }
 }

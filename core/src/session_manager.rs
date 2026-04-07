@@ -301,6 +301,9 @@ mod tests {
         ) -> std::result::Result<Vec<u8>, TransportError> {
             Err(TransportError::NetworkError("mock transport".to_string()))
         }
+        fn get(&self, _url: String) -> std::result::Result<Vec<u8>, TransportError> {
+            Err(TransportError::NetworkError("mock transport".to_string()))
+        }
     }
 
     fn mock_transport() -> Arc<dyn HttpTransport> {

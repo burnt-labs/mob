@@ -14,12 +14,23 @@ module Mob
 
     def post(url, body)
       uri = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == 'https')
-
       request = Net::HTTP::Post.new(uri.request_uri)
       request['Content-Type'] = 'application/json'
       request.body = body.pack('C*')
+      perform(uri, request)
+    end
+
+    def get(url)
+      uri = URI.parse(url)
+      request = Net::HTTP::Get.new(uri.request_uri)
+      perform(uri, request)
+    end
+
+    private
+
+    def perform(uri, request)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = (uri.scheme == 'https')
 
       response = http.request(request)
 

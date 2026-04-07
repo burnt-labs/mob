@@ -16,6 +16,19 @@ class NativeHttpTransport: HttpTransport {
         request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        return try performRequest(request)
+    }
+
+    func get(url: String) throws -> Data {
+        guard let requestUrl = URL(string: url) else {
+            throw TransportError.RequestFailed(message: "Invalid URL: \(url)")
+        }
+
+        let request = URLRequest(url: requestUrl)
+        return try performRequest(request)
+    }
+
+    private func performRequest(_ request: URLRequest) throws -> Data {
         var result: Swift.Result<Data, Error>!
         let semaphore = DispatchSemaphore(value: 0)
 
