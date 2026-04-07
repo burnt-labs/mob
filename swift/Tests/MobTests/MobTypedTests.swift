@@ -1,6 +1,8 @@
+#if canImport(SwiftProtobuf) && canImport(XionTypes)
 import XCTest
 @testable import Mob
 import SwiftProtobuf
+import XionTypes
 
 // Typed tests using xion-types Swift protobuf definitions
 // These tests demonstrate using strongly-typed protobuf messages with the mob library
@@ -296,3 +298,4 @@ extension MobTypedTests {
         return coin
     }
 }
+#endif

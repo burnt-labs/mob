@@ -11,18 +11,22 @@ RN_IOS_DIR="$ROOT_DIR/react-native/ios"
 echo "Building mob for iOS..."
 
 # Ensure Rust targets are installed
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim 2>/dev/null || true
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios 2>/dev/null || true
 
 # Features for iOS builds (exclude std-transport — native Swift transport is used instead)
 IOS_FEATURES="rpc-client,uniffi-bindings,rust-signer"
 
-# Build static library for device (arm64)
+# Build library for device (arm64)
 echo "Building for aarch64-apple-ios..."
 cargo build --release --target aarch64-apple-ios -p mob --no-default-features --features "$IOS_FEATURES"
 
-# Build static library for simulator (arm64)
+# Build library for simulator (arm64)
 echo "Building for aarch64-apple-ios-sim..."
 cargo build --release --target aarch64-apple-ios-sim -p mob --no-default-features --features "$IOS_FEATURES"
+
+# Build library for simulator (x86_64)
+echo "Building for x86_64-apple-ios..."
+cargo build --release --target x86_64-apple-ios -p mob --no-default-features --features "$IOS_FEATURES"
 
 # Generate Swift bindings using the macOS build (bindings are platform-independent)
 echo "Generating Swift bindings..."
@@ -39,24 +43,29 @@ rm -rf "$RN_IOS_DIR/Frameworks/libmob.xcframework"
 # Prepare staging area for XCFramework
 XCFW_BUILD="$ROOT_DIR/target/xcframework-build"
 rm -rf "$XCFW_BUILD"
-mkdir -p "$XCFW_BUILD/device/headers" "$XCFW_BUILD/simulator/headers"
+mkdir -p "$XCFW_BUILD/device/headers" "$XCFW_BUILD/simulator-universal/headers"
 
-# Copy static libraries
-cp target/aarch64-apple-ios/release/libmob.a "$XCFW_BUILD/device/"
-cp target/aarch64-apple-ios-sim/release/libmob.a "$XCFW_BUILD/simulator/"
+# Copy device dylib
+cp target/aarch64-apple-ios/release/libmob.dylib "$XCFW_BUILD/device/"
+
+# Create a universal simulator dylib that works on both Apple Silicon and Intel hosts
+lipo -create \
+  target/aarch64-apple-ios-sim/release/libmob.dylib \
+  target/x86_64-apple-ios/release/libmob.dylib \
+  -output "$XCFW_BUILD/simulator-universal/libmob.dylib"
 
 # Copy headers to separate directories (so libmob.a isn't treated as a header)
 cp "$RN_IOS_DIR/generated/mobFFI.h" "$XCFW_BUILD/device/headers/"
 cp "$RN_IOS_DIR/generated/mobFFI.modulemap" "$XCFW_BUILD/device/headers/module.modulemap"
-cp "$RN_IOS_DIR/generated/mobFFI.h" "$XCFW_BUILD/simulator/headers/"
-cp "$RN_IOS_DIR/generated/mobFFI.modulemap" "$XCFW_BUILD/simulator/headers/module.modulemap"
+cp "$RN_IOS_DIR/generated/mobFFI.h" "$XCFW_BUILD/simulator-universal/headers/"
+cp "$RN_IOS_DIR/generated/mobFFI.modulemap" "$XCFW_BUILD/simulator-universal/headers/module.modulemap"
 
 # Create XCFramework
 xcodebuild -create-xcframework \
-  -library "$XCFW_BUILD/device/libmob.a" \
+  -library "$XCFW_BUILD/device/libmob.dylib" \
   -headers "$XCFW_BUILD/device/headers" \
-  -library "$XCFW_BUILD/simulator/libmob.a" \
-  -headers "$XCFW_BUILD/simulator/headers" \
+  -library "$XCFW_BUILD/simulator-universal/libmob.dylib" \
+  -headers "$XCFW_BUILD/simulator-universal/headers" \
   -output "$RN_IOS_DIR/Frameworks/libmob.xcframework"
 
 # Clean up

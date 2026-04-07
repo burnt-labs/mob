@@ -17,7 +17,8 @@ final class MobTests: XCTestCase {
                        "emotion rescue brand pull"
 
     var config: ChainConfig!
-    var signer: Signer!
+    var signer: RustSigner!
+    let transport = NativeHttpTransport()
 
     override func setUp() {
         super.setUp()
@@ -28,10 +29,11 @@ final class MobTests: XCTestCase {
             grpcEndpoint: nil,
             addressPrefix: addressPrefix,
             coinType: 118,
-            gasPrice: "0.025"
+            gasPrice: "0.025",
+            feeGranter: nil
         )
 
-        signer = try! Signer.fromMnemonic(
+        signer = try! RustSigner.fromMnemonic(
             mnemonic: testMnemonic,
             addressPrefix: addressPrefix,
             derivationPath: "m/44'/118'/0'/0/0"
@@ -39,12 +41,12 @@ final class MobTests: XCTestCase {
     }
 
     func testCreateClient() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         XCTAssertNotNil(client)
     }
 
     func testGetHeight() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         let height = try client.getHeight()
 
         XCTAssertGreaterThan(height, 0, "Height should be greater than 0")
@@ -52,7 +54,7 @@ final class MobTests: XCTestCase {
     }
 
     func testGetChainId() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         let chainId = try client.getChainId()
 
         XCTAssertEqual(self.chainId, chainId)
@@ -60,7 +62,7 @@ final class MobTests: XCTestCase {
     }
 
     func testIsSynced() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         let isSynced = try client.isSynced()
 
         XCTAssertNotNil(isSynced)
@@ -68,7 +70,7 @@ final class MobTests: XCTestCase {
     }
 
     func testCreateSigner() throws {
-        let signer = try Signer.fromMnemonic(
+        let signer = try RustSigner.fromMnemonic(
             mnemonic: testMnemonic,
             addressPrefix: addressPrefix,
             derivationPath: "m/44'/118'/0'/0/0"
@@ -81,7 +83,7 @@ final class MobTests: XCTestCase {
     }
 
     func testGetAccount() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         let address = signer.address()
 
         let accountInfo = try client.getAccount(address: address)
@@ -93,7 +95,7 @@ final class MobTests: XCTestCase {
     }
 
     func testGetBalance() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
         let address = signer.address()
 
         let balance = try client.getBalance(address: address, denom: "uxion")
@@ -113,7 +115,7 @@ final class MobTests: XCTestCase {
     }
 
     func testInvalidMnemonic() {
-        XCTAssertThrowsError(try Signer.fromMnemonic(
+        XCTAssertThrowsError(try RustSigner.fromMnemonic(
             mnemonic: "invalid mnemonic words",
             addressPrefix: "xion",
             derivationPath: "m/44'/118'/0'/0/0"
@@ -122,20 +124,20 @@ final class MobTests: XCTestCase {
     }
 
     func testInvalidAddress() throws {
-        let client = try Client(config: config)
+        let client = try Client(config: config, transport: transport)
 
         XCTAssertThrowsError(try client.getAccount(address: "invalid_address"))
         print("✅ Invalid address properly rejected")
     }
 
     func testMultipleSigners() throws {
-        let signer1 = try Signer.fromMnemonic(
+        let signer1 = try RustSigner.fromMnemonic(
             mnemonic: testMnemonic,
             addressPrefix: "xion",
             derivationPath: "m/44'/118'/0'/0/0"
         )
 
-        let signer2 = try Signer.fromMnemonic(
+        let signer2 = try RustSigner.fromMnemonic(
             mnemonic: testMnemonic,
             addressPrefix: "xion",
             derivationPath: "m/44'/118'/0'/0/1"
@@ -170,7 +172,8 @@ final class MobIntegrationTests: XCTestCase {
                        "emotion rescue brand pull"
 
     var config: ChainConfig!
-    var signer: Signer!
+    var signer: RustSigner!
+    let transport = NativeHttpTransport()
 
     override func setUp() {
         super.setUp()
@@ -186,10 +189,11 @@ final class MobIntegrationTests: XCTestCase {
             grpcEndpoint: nil,
             addressPrefix: addressPrefix,
             coinType: 118,
-            gasPrice: "0.025"
+            gasPrice: "0.025",
+            feeGranter: nil
         )
 
-        signer = try! Signer.fromMnemonic(
+        signer = try! RustSigner.fromMnemonic(
             mnemonic: testMnemonic,
             addressPrefix: addressPrefix,
             derivationPath: "m/44'/118'/0'/0/0"
@@ -215,7 +219,7 @@ final class MobIntegrationTests: XCTestCase {
         print("   🎯 Recipient: \(recipient)")
 
         print("\n2️⃣  Creating client with signer attached...")
-        let client = try Client.newWithSigner(config: config, signer: signer)
+        let client = try Client.newWithSigner(config: config, signer: signer, transport: transport)
         print("   ✅ Client connected with signer attached")
 
         print("\n3️⃣  Querying sender balance...")

@@ -10,6 +10,11 @@ pub struct SessionMetadata {
     pub granter: String,
     /// The address of the session key (grantee)
     pub grantee: String,
+    /// Optional fee granter for transactions signed under this session.
+    /// Defaults to the granter when omitted.
+    pub fee_granter: Option<String>,
+    /// Optional fee payer for transactions signed under this session.
+    pub fee_payer: Option<String>,
     /// When the session was created (Unix timestamp in seconds)
     pub created_at: u64,
     /// When the session expires (Unix timestamp in seconds)
@@ -29,6 +34,8 @@ impl SessionMetadata {
         Self {
             granter,
             grantee,
+            fee_granter: None,
+            fee_payer: None,
             created_at,
             expires_at,
             description: None,
@@ -45,10 +52,24 @@ impl SessionMetadata {
         Self {
             granter,
             grantee,
+            fee_granter: None,
+            fee_payer: None,
             created_at: now,
             expires_at: now + duration_seconds,
             description: None,
         }
+    }
+
+    /// Override the fee granter for this session.
+    pub fn with_fee_granter(mut self, fee_granter: String) -> Self {
+        self.fee_granter = Some(fee_granter);
+        self
+    }
+
+    /// Override the fee payer for this session.
+    pub fn with_fee_payer(mut self, fee_payer: String) -> Self {
+        self.fee_payer = Some(fee_payer);
+        self
     }
 
     /// Add a description to the session
@@ -130,5 +151,19 @@ mod tests {
         .with_description("Test session".to_string());
 
         assert_eq!(session.description, Some("Test session".to_string()));
+    }
+
+    #[test]
+    fn test_session_fee_overrides() {
+        let session = SessionMetadata::with_duration(
+            "xion1granter".to_string(),
+            "xion1grantee".to_string(),
+            3600,
+        )
+        .with_fee_granter("xion1treasury".to_string())
+        .with_fee_payer("xion1payer".to_string());
+
+        assert_eq!(session.fee_granter, Some("xion1treasury".to_string()));
+        assert_eq!(session.fee_payer, Some("xion1payer".to_string()));
     }
 }

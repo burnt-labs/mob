@@ -116,7 +116,7 @@ impl MobSessionManager {
             })?
             .clone();
 
-        let client = Client::new_with_signer(config, signer, transport)?;
+        let client = Client::new_with_session(config, signer, metadata.clone(), transport)?;
         state.metadata = Some(metadata);
         state.client = Some(Arc::new(client));
 
@@ -187,7 +187,12 @@ impl MobSessionManager {
         let signer = RustSigner::from_private_key(private_key, &config.address_prefix)?;
         let signer_arc = Arc::new(signer);
 
-        let client = Client::new_with_signer(config.clone(), signer_arc.clone(), transport)?;
+        let client = Client::new_with_session(
+            config.clone(),
+            signer_arc.clone(),
+            metadata.clone(),
+            transport,
+        )?;
 
         Ok(Self {
             address_prefix: config.address_prefix,

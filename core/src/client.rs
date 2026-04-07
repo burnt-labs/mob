@@ -11,6 +11,9 @@ use crate::{
     crypto_signer::CryptoSigner,
     error::{MobError, Result},
     http_transport::HttpTransport,
+    session::SessionMetadata,
+    session_signer::SessionSigner,
+    signing_strategy::{BasicSigningStrategy, TransactionSigner},
     transaction::TransactionBuilder,
     types::{AccountInfo, BroadcastMode, ChainConfig, Coin, Message, TxResponse},
 };
@@ -26,6 +29,7 @@ pub struct Client {
     rpc_client: NativeRpcClient,
     transport: Arc<dyn HttpTransport>,
     signer: Option<Arc<dyn CryptoSigner>>,
+    transaction_signer: Option<Arc<dyn TransactionSigner>>,
     account: Option<Account>,
 }
 
@@ -84,10 +88,8 @@ impl Client {
     }
 
     /// Execute a CosmWasm contract (synchronous wrapper).
-    /// Mirrors xion.js GranteeSignerClient behavior:
-    /// - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
-    ///   using the granter as the contract sender and the signer as the grantee.
-    /// - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
+    /// If `granter` is set, wraps MsgExecuteContract in MsgExec (authz).
+    /// If `fee_granter` is set, the fee granter pays gas.
     #[allow(clippy::too_many_arguments)]
     pub fn execute_contract(
         &self,
@@ -281,6 +283,31 @@ impl Client {
             Ok(client)
         })
     }
+
+    /// Create a new RPC client with a session-aware CryptoSigner attached.
+    ///
+    /// This accepts foreign (Swift/Kotlin/Python) CryptoSigner implementations
+    /// and applies session/authz semantics in Rust.
+    #[uniffi::constructor]
+    pub fn new_with_session_crypto_signer(
+        config: ChainConfig,
+        signer: Arc<dyn CryptoSigner>,
+        metadata: SessionMetadata,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<Self> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(async {
+            let mut client = Self::new_with_transport(config, transport);
+            client
+                .attach_session_crypto_signer(signer, metadata)
+                .await?;
+            Ok(client)
+        })
+    }
 }
 
 // RustSigner-specific FFI constructors (only with rust-signer feature)
@@ -308,6 +335,17 @@ impl Client {
         })
     }
 
+    /// Create a new RPC client with a RustSigner attached in session/authz mode.
+    #[uniffi::constructor]
+    pub fn new_with_session_signer(
+        config: ChainConfig,
+        signer: Arc<RustSigner>,
+        metadata: SessionMetadata,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<Self> {
+        Self::new_with_session(config, signer, metadata, transport)
+    }
+
     /// Attach a signer to the client
     ///
     /// Note: This method is only available with the `rust-signer` feature.
@@ -332,8 +370,34 @@ impl Client {
             rpc_client,
             transport,
             signer: None,
+            transaction_signer: None,
             account: None,
         }
+    }
+
+    /// Create a new RPC client in session/authz mode.
+    ///
+    /// The underlying signer is the grantee session key, while messages are
+    /// automatically wrapped in MsgExec and use the granter as the logical sender.
+    #[cfg(feature = "rust-signer")]
+    pub fn new_with_session(
+        config: ChainConfig,
+        signer: Arc<RustSigner>,
+        metadata: SessionMetadata,
+        transport: Arc<dyn HttpTransport>,
+    ) -> Result<Self> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
+
+        runtime.block_on(async {
+            let mut client = Self::new_with_transport(config, transport);
+            client
+                .attach_session_signer_internal(signer, metadata)
+                .await?;
+            Ok(client)
+        })
     }
 
     /// Attach a signer to the client (internal)
@@ -346,7 +410,9 @@ impl Client {
         let account = Account::new(address);
 
         // Convert to trait object
-        self.signer = Some(signer as Arc<dyn CryptoSigner>);
+        let trait_signer = signer as Arc<dyn CryptoSigner>;
+        self.transaction_signer = Some(Arc::new(BasicSigningStrategy::new(trait_signer.clone())));
+        self.signer = Some(trait_signer);
         self.account = Some(account);
 
         // Fetch account info
@@ -363,6 +429,7 @@ impl Client {
         let address = signer.address();
         let account = Account::new(address);
 
+        self.transaction_signer = Some(Arc::new(BasicSigningStrategy::new(signer.clone())));
         self.signer = Some(signer);
         self.account = Some(account);
 
@@ -370,6 +437,42 @@ impl Client {
         self.refresh_account_info().await?;
 
         Ok(())
+    }
+
+    /// Attach a signer in session/authz mode.
+    pub async fn attach_session_crypto_signer(
+        &mut self,
+        signer: Arc<dyn CryptoSigner>,
+        metadata: SessionMetadata,
+    ) -> Result<()> {
+        metadata.validate()?;
+        let grantee = signer.address();
+        if grantee != metadata.grantee {
+            return Err(MobError::InvalidInput(format!(
+                "Session grantee {} does not match signer address {}",
+                metadata.grantee, grantee
+            )));
+        }
+
+        let account = Account::new(grantee);
+        let session_signer = Arc::new(SessionSigner::with_signer(signer.clone(), metadata)?);
+        self.signer = Some(signer);
+        self.transaction_signer = Some(session_signer);
+        self.account = Some(account);
+
+        self.refresh_account_info().await?;
+        Ok(())
+    }
+
+    /// Attach a RustSigner in session/authz mode.
+    #[cfg(feature = "rust-signer")]
+    pub async fn attach_session_signer_internal(
+        &mut self,
+        signer: Arc<RustSigner>,
+        metadata: SessionMetadata,
+    ) -> Result<()> {
+        self.attach_session_crypto_signer(signer as Arc<dyn CryptoSigner>, metadata)
+            .await
     }
 
     /// Get the attached signer
@@ -385,6 +488,36 @@ impl Client {
     /// Get chain configuration
     pub fn config(&self) -> ChainConfig {
         self.config.clone()
+    }
+
+    fn logical_sender_address(&self) -> Result<String> {
+        self.transaction_signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .logical_sender_address()
+    }
+
+    fn transform_messages_for_signing(
+        &self,
+        messages: Vec<cosmrs::Any>,
+    ) -> Result<Vec<cosmrs::Any>> {
+        self.transaction_signer
+            .as_ref()
+            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
+            .transform_messages(messages)
+    }
+
+    fn resolved_fee_granter(&self) -> Option<String> {
+        self.transaction_signer
+            .as_ref()
+            .and_then(|signer| signer.fee_granter())
+            .or_else(|| self.config.fee_granter.clone())
+    }
+
+    fn resolved_fee_payer(&self) -> Option<String> {
+        self.transaction_signer
+            .as_ref()
+            .and_then(|signer| signer.fee_payer())
     }
 }
 
@@ -603,11 +736,7 @@ impl Client {
         amount: Vec<Coin>,
         memo: Option<String>,
     ) -> Result<TxResponse> {
-        let sender = self
-            .signer
-            .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
-            .address();
+        let sender = self.logical_sender_address()?;
 
         let msg = crate::transaction::messages::msg_send(&sender, to_address, amount)?;
         self.sign_and_broadcast_messages(vec![msg], memo, None)
@@ -628,11 +757,7 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let sender = self
-            .signer
-            .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
-            .address();
+        let sender = self.logical_sender_address()?;
 
         let tx_msg = if let Some(ref granter_addr) = granter {
             crate::transaction::messages::msg_execute_contract_authz(
@@ -667,11 +792,7 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let sender = self
-            .signer
-            .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
-            .address();
+        let sender = self.logical_sender_address()?;
 
         let store_msg = crate::transaction::messages::msg_store_code(&sender, wasm_byte_code)?;
         self.sign_and_broadcast_messages(vec![store_msg], memo, gas_limit)
@@ -690,11 +811,7 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
-        let sender = self
-            .signer
-            .as_ref()
-            .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?
-            .address();
+        let sender = self.logical_sender_address()?;
 
         let instantiate_msg = crate::transaction::messages::msg_instantiate_contract(
             &sender, admin, code_id, label, msg, funds,
@@ -753,7 +870,7 @@ impl Client {
     /// then applying a multiplier (1.4x) for safety margin.
     async fn estimate_gas(&self, messages: &[cosmrs::Any], memo: Option<&str>) -> Result<u64> {
         let signer = self
-            .signer
+            .transaction_signer
             .as_ref()
             .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
 
@@ -764,9 +881,8 @@ impl Client {
 
         // Build tx with zero fee for simulation
         let mut zero_fee = crate::transaction::calculate_fee(0, "0", "uxion")?;
-        if let Some(ref granter) = self.config.fee_granter {
-            zero_fee.granter = Some(granter.clone());
-        }
+        zero_fee.granter = self.resolved_fee_granter();
+        zero_fee.payer = self.resolved_fee_payer();
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
         for m in messages {
@@ -811,12 +927,14 @@ impl Client {
         fee_granter: Option<String>,
     ) -> Result<TxResponse> {
         let signer = self
-            .signer
+            .transaction_signer
             .as_ref()
             .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
 
         // Refetch account info to get current sequence
-        let account_info = self.get_account_internal(&signer.address()).await?;
+        let account_info = self.get_account_internal(&signer.signing_address()).await?;
+
+        let messages = self.transform_messages_for_signing(messages)?;
 
         let resolved_gas = match gas_limit {
             Some(limit) => limit,
@@ -825,10 +943,15 @@ impl Client {
 
         let mut fee =
             crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
-        // Explicit fee_granter param takes precedence over config
-        let effective_granter = fee_granter.or_else(|| self.config.fee_granter.clone());
+        // Explicit fee_granter param > signer's fee_granter > config fee_granter
+        let effective_granter = fee_granter
+            .or_else(|| signer.fee_granter())
+            .or_else(|| self.config.fee_granter.clone());
         if let Some(ref granter) = effective_granter {
             fee.granter = Some(granter.clone());
+        }
+        if let Some(payer) = signer.fee_payer() {
+            fee.payer = Some(payer);
         }
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
@@ -1079,6 +1202,8 @@ impl Client {
 mod tests {
     use super::*;
     use crate::http_transport::{HttpTransport, TransportError};
+    #[cfg(feature = "rust-signer")]
+    use crate::rust_signer::RustSigner;
 
     /// A mock transport for tests — returns an error on every request.
     struct MockTransport;
@@ -1161,5 +1286,109 @@ mod tests {
         .expect("Failed to decode");
         assert_eq!(decoded.address, contract);
         assert_eq!(decoded.query_data, query_msg.to_vec());
+    }
+
+    #[cfg(feature = "rust-signer")]
+    fn build_session_test_client() -> (Client, SessionMetadata) {
+        let config = ChainConfig::new(
+            "xion-testnet-1",
+            "https://rpc.xion-testnet-1.burnt.com:443",
+            "xion",
+        );
+        let transport: Arc<dyn HttpTransport> = Arc::new(MockTransport);
+        let granter = RustSigner::from_mnemonic(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
+            "xion".to_string(),
+            None,
+        )
+        .expect("Failed to create granter signer");
+        let grantee = RustSigner::from_mnemonic(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
+            "xion".to_string(),
+            Some("m/44'/118'/0'/0/1".to_string()),
+        )
+        .expect("Failed to create grantee signer");
+        let metadata = SessionMetadata::with_duration(granter.address(), grantee.address(), 3600);
+
+        let mut client = Client::new_with_transport(config, transport);
+        let grantee_signer: Arc<dyn CryptoSigner> = Arc::new(grantee);
+        let session_signer = Arc::new(
+            SessionSigner::with_signer(grantee_signer.clone(), metadata.clone())
+                .expect("session signer"),
+        );
+        client.signer = Some(grantee_signer);
+        client.transaction_signer = Some(session_signer);
+        client.account = Some(Account::new(metadata.grantee.clone()));
+        (client, metadata)
+    }
+
+    #[test]
+    #[cfg(feature = "rust-signer")]
+    fn test_session_client_uses_granter_as_logical_sender() {
+        let (client, metadata) = build_session_test_client();
+        assert_eq!(
+            client.logical_sender_address().expect("sender"),
+            metadata.granter
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "rust-signer")]
+    fn test_session_client_wraps_contract_messages_in_msg_exec() {
+        use prost::Message as ProstMessage;
+
+        let (client, metadata) = build_session_test_client();
+
+        let execute_msg = crate::transaction::messages::msg_execute_contract(
+            &client.logical_sender_address().expect("sender"),
+            &metadata.granter,
+            br#"{"ping":{}}"#,
+            vec![],
+        )
+        .expect("execute message");
+
+        let wrapped = client
+            .transform_messages_for_signing(vec![execute_msg])
+            .expect("wrapped");
+        assert_eq!(wrapped.len(), 1);
+        assert_eq!(wrapped[0].type_url, "/cosmos.authz.v1beta1.MsgExec");
+
+        let msg_exec =
+            xion_types::types::cosmos_authz_v1beta1::MsgExec::decode(wrapped[0].value.as_slice())
+                .expect("decode MsgExec");
+        assert_eq!(msg_exec.grantee, metadata.grantee);
+        assert_eq!(msg_exec.msgs.len(), 1);
+
+        let inner = xion_types::types::cosmwasm_wasm_v1::MsgExecuteContract::decode(
+            msg_exec.msgs[0].value.as_slice(),
+        )
+        .expect("decode inner message");
+        assert_eq!(inner.sender, metadata.granter);
+    }
+
+    #[test]
+    #[cfg(feature = "rust-signer")]
+    fn test_session_client_defaults_fee_granter_to_granter() {
+        let (client, metadata) = build_session_test_client();
+        assert_eq!(client.resolved_fee_granter(), Some(metadata.granter));
+        assert_eq!(client.resolved_fee_payer(), None);
+    }
+
+    #[test]
+    #[cfg(feature = "rust-signer")]
+    fn test_session_client_prefers_session_fee_overrides() {
+        let (mut client, mut metadata) = build_session_test_client();
+        let signer = client.signer.clone().expect("signer");
+        let override_granter = metadata.grantee.clone();
+        let override_payer = metadata.granter.clone();
+        metadata = metadata
+            .with_fee_granter(override_granter)
+            .with_fee_payer(override_payer);
+        client.transaction_signer = Some(Arc::new(
+            SessionSigner::with_signer(signer, metadata.clone()).expect("session signer"),
+        ));
+
+        assert_eq!(client.resolved_fee_granter(), metadata.fee_granter);
+        assert_eq!(client.resolved_fee_payer(), metadata.fee_payer);
     }
 }

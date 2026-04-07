@@ -4,7 +4,6 @@ import PackageDescription
 let package = Package(
     name: "Mob",
     platforms: [
-        .macOS(.v13),
         .iOS(.v16)
     ],
     products: [
@@ -22,8 +21,7 @@ let package = Package(
             name: "Mob",
             dependencies: ["libmob"],
             path: "Sources/Mob",
-            sources: ["mob.swift"],
-            publicHeadersPath: "include"
+            sources: ["mob.swift", "NativeHttpTransport.swift", "Compat.swift"]
         ),
         .testTarget(
             name: "MobTests",
