@@ -406,7 +406,7 @@ impl Client {
         let query_path = "/cosmos.auth.v1beta1.Query/Account".to_string();
 
         // Create the query request protobuf
-        let query_request = xion_types::cosmos::auth::v1beta1::QueryAccountRequest {
+        let query_request = xion_types::types::cosmos_auth_v1beta1::QueryAccountRequest {
             address: address.to_string(),
         };
 
@@ -434,7 +434,7 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = xion_types::cosmos::auth::v1beta1::QueryAccountResponse::decode(
+        let query_response = xion_types::types::cosmos_auth_v1beta1::QueryAccountResponse::decode(
             response.value.as_slice(),
         )
         .map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
@@ -445,9 +445,10 @@ impl Client {
             .ok_or_else(|| MobError::Account("Account not found".to_string()))?;
 
         // Decode BaseAccount from Any
-        let base_account =
-            xion_types::cosmos::auth::v1beta1::BaseAccount::decode(account_any.value.as_slice())
-                .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
+        let base_account = xion_types::types::cosmos_auth_v1beta1::BaseAccount::decode(
+            account_any.value.as_slice(),
+        )
+        .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
 
         Ok(AccountInfo {
             address: address.to_string(),
@@ -463,7 +464,7 @@ impl Client {
         let query_path = "/cosmos.bank.v1beta1.Query/Balance".to_string();
 
         // Create the query request protobuf
-        let query_request = xion_types::cosmos::bank::v1beta1::QueryBalanceRequest {
+        let query_request = xion_types::types::cosmos_bank_v1beta1::QueryBalanceRequest {
             address: address.to_string(),
             denom: denom.to_string(),
         };
@@ -492,7 +493,7 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = xion_types::cosmos::bank::v1beta1::QueryBalanceResponse::decode(
+        let query_response = xion_types::types::cosmos_bank_v1beta1::QueryBalanceResponse::decode(
             response.value.as_slice(),
         )
         .map_err(|e| MobError::Transaction(format!("Failed to decode balance response: {}", e)))?;
@@ -510,7 +511,7 @@ impl Client {
         let query_path = "/cosmos.bank.v1beta1.Query/AllBalances".to_string();
 
         // Create the query request protobuf
-        let query_request = xion_types::cosmos::bank::v1beta1::QueryAllBalancesRequest {
+        let query_request = xion_types::types::cosmos_bank_v1beta1::QueryAllBalancesRequest {
             address: address.to_string(),
             pagination: None,
             resolve_denom: false,
@@ -540,12 +541,13 @@ impl Client {
         }
 
         // Decode the response
-        let query_response = xion_types::cosmos::bank::v1beta1::QueryAllBalancesResponse::decode(
-            response.value.as_slice(),
-        )
-        .map_err(|e| {
-            MobError::Transaction(format!("Failed to decode all balances response: {}", e))
-        })?;
+        let query_response =
+            xion_types::types::cosmos_bank_v1beta1::QueryAllBalancesResponse::decode(
+                response.value.as_slice(),
+            )
+            .map_err(|e| {
+                MobError::Transaction(format!("Failed to decode all balances response: {}", e))
+            })?;
 
         // Convert to our Coin types
         Ok(query_response
@@ -649,7 +651,7 @@ impl Client {
         use prost::Message;
 
         #[allow(deprecated)]
-        let request = xion_types::cosmos::tx::v1beta1::SimulateRequest { tx: None, tx_bytes };
+        let request = xion_types::types::cosmos_tx_v1beta1::SimulateRequest { tx: None, tx_bytes };
 
         let mut buf = Vec::new();
         request.encode(&mut buf).map_err(|e| {
@@ -675,11 +677,10 @@ impl Client {
             )));
         }
 
-        let sim_response =
-            xion_types::cosmos::tx::v1beta1::SimulateResponse::decode(response.value.as_slice())
-                .map_err(|e| {
-                    MobError::Transaction(format!("Failed to decode simulate response: {}", e))
-                })?;
+        let sim_response = xion_types::types::cosmos_tx_v1beta1::SimulateResponse::decode(
+            response.value.as_slice(),
+        )
+        .map_err(|e| MobError::Transaction(format!("Failed to decode simulate response: {}", e)))?;
 
         let gas_used = sim_response
             .gas_info
@@ -914,7 +915,7 @@ impl Client {
 
         let query_path = "/cosmwasm.wasm.v1.Query/SmartContractState".to_string();
 
-        let request = xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest {
+        let request = xion_types::types::cosmwasm_wasm_v1::QuerySmartContractStateRequest {
             address: contract_address.to_string(),
             query_data: query_msg.to_vec(),
         };
@@ -939,7 +940,7 @@ impl Client {
         }
 
         let query_response =
-            xion_types::cosmwasm::wasm::v1::QuerySmartContractStateResponse::decode(
+            xion_types::types::cosmwasm_wasm_v1::QuerySmartContractStateResponse::decode(
                 response.value.as_slice(),
             )
             .map_err(|e| {
@@ -956,7 +957,7 @@ impl Client {
 
         let query_path = "/cosmos.authz.v1beta1.Query/Grants".to_string();
 
-        let request = xion_types::cosmos::authz::v1beta1::QueryGrantsRequest {
+        let request = xion_types::types::cosmos_authz_v1beta1::QueryGrantsRequest {
             granter: granter.to_string(),
             grantee: grantee.to_string(),
             msg_type_url: String::new(),
@@ -978,7 +979,7 @@ impl Client {
             return Ok(false);
         }
 
-        let query_response = xion_types::cosmos::authz::v1beta1::QueryGrantsResponse::decode(
+        let query_response = xion_types::types::cosmos_authz_v1beta1::QueryGrantsResponse::decode(
             response.value.as_slice(),
         )
         .map_err(|e| MobError::Transaction(format!("Failed to decode grants response: {}", e)))?;
@@ -1069,7 +1070,7 @@ mod tests {
         let contract = "xion1contractaddr";
         let query_msg = br#"{"balance":{"address":"xion1user"}}"#;
 
-        let request = xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest {
+        let request = xion_types::types::cosmwasm_wasm_v1::QuerySmartContractStateRequest {
             address: contract.to_string(),
             query_data: query_msg.to_vec(),
         };
@@ -1079,9 +1080,10 @@ mod tests {
         assert!(!buf.is_empty());
 
         // Verify round-trip
-        let decoded =
-            xion_types::cosmwasm::wasm::v1::QuerySmartContractStateRequest::decode(buf.as_slice())
-                .expect("Failed to decode");
+        let decoded = xion_types::types::cosmwasm_wasm_v1::QuerySmartContractStateRequest::decode(
+            buf.as_slice(),
+        )
+        .expect("Failed to decode");
         assert_eq!(decoded.address, contract);
         assert_eq!(decoded.query_data, query_msg.to_vec());
     }

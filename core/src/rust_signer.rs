@@ -140,7 +140,7 @@ impl RustSigner {
 
         // Encode SignDoc to protobuf bytes
         let mut sign_doc_bytes = Vec::new();
-        let sign_doc_proto = xion_types::cosmos::tx::v1beta1::SignDoc {
+        let sign_doc_proto = xion_types::types::cosmos_tx_v1beta1::SignDoc {
             body_bytes: sign_doc.body_bytes.clone(),
             auth_info_bytes: sign_doc.auth_info_bytes.clone(),
             chain_id: sign_doc.chain_id.to_string(),
@@ -154,7 +154,7 @@ impl RustSigner {
         let signature = self.sign_bytes_internal(&sign_doc_bytes)?;
 
         // Create raw transaction using proto directly
-        let tx_raw_proto = xion_types::cosmos::tx::v1beta1::TxRaw {
+        let tx_raw_proto = xion_types::types::cosmos_tx_v1beta1::TxRaw {
             body_bytes: sign_doc.body_bytes.clone(),
             auth_info_bytes: sign_doc.auth_info_bytes.clone(),
             signatures: vec![signature],
