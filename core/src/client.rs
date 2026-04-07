@@ -87,11 +87,6 @@ impl Client {
         runtime.block_on(self.send_internal(&to_address, amount, memo))
     }
 
-    /// Build an FFI-safe send message for use with `sign_and_broadcast_multi`.
-    pub fn build_send_message(&self, to_address: String, amount: Vec<Coin>) -> Result<Message> {
-        self.build_send_message_internal(&to_address, amount)
-    }
-
     /// Execute a CosmWasm contract (synchronous wrapper).
     /// If `granter` is set, wraps MsgExecuteContract in MsgExec (authz).
     /// If `fee_granter` is set, the fee granter pays gas.
@@ -122,16 +117,6 @@ impl Client {
         ))
     }
 
-    /// Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
-    pub fn build_execute_contract_message(
-        &self,
-        contract_address: String,
-        msg: Vec<u8>,
-        funds: Vec<Coin>,
-    ) -> Result<Message> {
-        self.build_execute_contract_message_internal(&contract_address, &msg, funds)
-    }
-
     /// Store a CosmWasm contract (synchronous wrapper)
     pub fn store_code(
         &self,
@@ -145,11 +130,6 @@ impl Client {
             .map_err(|e| MobError::Generic(format!("Failed to create runtime: {}", e)))?;
 
         runtime.block_on(self.store_code_internal(wasm_byte_code, memo, gas_limit))
-    }
-
-    /// Build an FFI-safe store-code message for use with `sign_and_broadcast_multi`.
-    pub fn build_store_code_message(&self, wasm_byte_code: Vec<u8>) -> Result<Message> {
-        self.build_store_code_message_internal(wasm_byte_code)
     }
 
     /// Instantiate an uploaded CosmWasm contract (synchronous wrapper)
@@ -178,25 +158,6 @@ impl Client {
             memo,
             gas_limit,
         ))
-    }
-
-    /// Build an FFI-safe instantiate-contract message for use with `sign_and_broadcast_multi`.
-    #[allow(clippy::too_many_arguments)]
-    pub fn build_instantiate_contract_message(
-        &self,
-        admin: Option<String>,
-        code_id: u64,
-        label: Option<String>,
-        msg: Vec<u8>,
-        funds: Vec<Coin>,
-    ) -> Result<Message> {
-        self.build_instantiate_contract_message_internal(
-            admin.as_deref(),
-            code_id,
-            label.as_deref(),
-            &msg,
-            funds,
-        )
     }
 
     /// Query transaction by hash (synchronous wrapper)
@@ -782,12 +743,6 @@ impl Client {
             .await
     }
 
-    fn build_send_message_internal(&self, to_address: &str, amount: Vec<Coin>) -> Result<Message> {
-        let sender = self.logical_sender_address()?;
-        let msg = crate::transaction::messages::msg_send(&sender, to_address, amount)?;
-        Ok(self.message_from_any(msg))
-    }
-
     /// Execute a CosmWasm contract (internal).
     /// If granter is Some, wraps MsgExecuteContract in MsgExec (authz).
     /// If fee_granter is Some, it is set on the fee so that account pays gas.
@@ -830,23 +785,6 @@ impl Client {
         .await
     }
 
-    fn build_execute_contract_message_internal(
-        &self,
-        contract_address: &str,
-        msg: &[u8],
-        funds: Vec<Coin>,
-    ) -> Result<Message> {
-        let sender = self.logical_sender_address()?;
-        let execute_msg = crate::transaction::messages::msg_execute_contract(
-            &sender,
-            contract_address,
-            msg,
-            funds,
-        )?;
-
-        Ok(self.message_from_any(execute_msg))
-    }
-
     /// Store a CosmWasm contract (internal)
     async fn store_code_internal(
         &self,
@@ -859,12 +797,6 @@ impl Client {
         let store_msg = crate::transaction::messages::msg_store_code(&sender, wasm_byte_code)?;
         self.sign_and_broadcast_messages(vec![store_msg], memo, gas_limit)
             .await
-    }
-
-    fn build_store_code_message_internal(&self, wasm_byte_code: Vec<u8>) -> Result<Message> {
-        let sender = self.logical_sender_address()?;
-        let store_msg = crate::transaction::messages::msg_store_code(&sender, wasm_byte_code)?;
-        Ok(self.message_from_any(store_msg))
     }
 
     /// Instantiate an uploaded CosmWasm contract (internal)
@@ -887,28 +819,6 @@ impl Client {
 
         self.sign_and_broadcast_messages(vec![instantiate_msg], memo, gas_limit)
             .await
-    }
-
-    fn build_instantiate_contract_message_internal(
-        &self,
-        admin: Option<&str>,
-        code_id: u64,
-        label: Option<&str>,
-        msg: &[u8],
-        funds: Vec<Coin>,
-    ) -> Result<Message> {
-        let sender = self.logical_sender_address()?;
-        let instantiate_msg = crate::transaction::messages::msg_instantiate_contract(
-            &sender, admin, code_id, label, msg, funds,
-        )?;
-        Ok(self.message_from_any(instantiate_msg))
-    }
-
-    fn message_from_any(&self, message: cosmrs::Any) -> Message {
-        Message {
-            type_url: message.type_url,
-            value: message.value,
-        }
     }
 
     /// Simulate a signed transaction to estimate gas usage.
@@ -1453,79 +1363,6 @@ mod tests {
             msg_exec.msgs[0].value.as_slice(),
         )
         .expect("decode inner message");
-        assert_eq!(inner.sender, metadata.granter);
-    }
-
-    #[test]
-    #[cfg(feature = "rust-signer")]
-    fn test_build_execute_contract_message_uses_logical_sender() {
-        use prost::Message as ProstMessage;
-
-        let (client, metadata) = build_session_test_client();
-
-        let execute_message = client
-            .build_execute_contract_message_internal(
-                &metadata.granter,
-                br#"{"join":{}}"#,
-                vec![Coin::new("uxion", "42")],
-            )
-            .expect("message");
-
-        assert_eq!(
-            execute_message.type_url,
-            "/cosmwasm.wasm.v1.MsgExecuteContract"
-        );
-
-        let inner = xion_types::types::cosmwasm_wasm_v1::MsgExecuteContract::decode(
-            execute_message.value.as_slice(),
-        )
-        .expect("decode inner message");
-        assert_eq!(inner.sender, metadata.granter);
-    }
-
-    #[test]
-    #[cfg(feature = "rust-signer")]
-    fn test_build_send_message_uses_logical_sender() {
-        use prost::Message as ProstMessage;
-
-        let (client, metadata) = build_session_test_client();
-        let send_message = client
-            .build_send_message_internal(&metadata.grantee, vec![Coin::new("uxion", "7")])
-            .expect("message");
-
-        assert_eq!(send_message.type_url, "/cosmos.bank.v1beta1.MsgSend");
-
-        let inner =
-            xion_types::types::cosmos_bank_v1beta1::MsgSend::decode(send_message.value.as_slice())
-                .expect("decode send message");
-        assert_eq!(inner.from_address, metadata.granter);
-    }
-
-    #[test]
-    #[cfg(feature = "rust-signer")]
-    fn test_build_instantiate_contract_message_uses_logical_sender() {
-        use prost::Message as ProstMessage;
-
-        let (client, metadata) = build_session_test_client();
-        let instantiate_message = client
-            .build_instantiate_contract_message_internal(
-                Some(&metadata.grantee),
-                42,
-                Some("demo"),
-                br#"{"instantiate":{}}"#,
-                vec![],
-            )
-            .expect("message");
-
-        assert_eq!(
-            instantiate_message.type_url,
-            "/cosmwasm.wasm.v1.MsgInstantiateContract"
-        );
-
-        let inner = xion_types::types::cosmwasm_wasm_v1::MsgInstantiateContract::decode(
-            instantiate_message.value.as_slice(),
-        )
-        .expect("decode instantiate message");
         assert_eq!(inner.sender, metadata.granter);
     }
 
