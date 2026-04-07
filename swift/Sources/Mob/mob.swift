@@ -3586,10 +3586,12 @@ public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
         
 
         
-        case .RequestFailed(_ /* message is ignored*/):
+        case let .RequestFailed(message):
             writeInt(&buf, Int32(1))
-        case .NetworkError(_ /* message is ignored*/):
+            FfiConverterString.write(message, into: &buf)
+        case let .NetworkError(message):
             writeInt(&buf, Int32(2))
+            FfiConverterString.write(message, into: &buf)
 
         
         }
