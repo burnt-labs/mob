@@ -30,4 +30,9 @@ pub trait HttpTransport: Send + Sync {
     /// # Returns
     /// The response body as raw bytes on success.
     fn post(&self, url: String, body: Vec<u8>) -> Result<Vec<u8>, TransportError>;
+
+    /// GET a URL and return the response bytes.
+    ///
+    /// Used for LCD/REST API queries (e.g., account info).
+    fn get(&self, url: String) -> Result<Vec<u8>, TransportError>;
 }

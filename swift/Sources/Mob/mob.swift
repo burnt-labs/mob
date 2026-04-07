@@ -414,13 +414,7 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -558,41 +552,22 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 /**
  * RPC client for interacting with the blockchain
- * Only available with "rpc-client" feature (default)
  */
 public protocol ClientProtocol: AnyObject, Sendable {
     
     /**
      * Attach a signer to the client
-     *
-     * Note: This method is only available with the `rust-signer` feature.
      */
-    func attachSigner(signer: RustSigner) throws 
+    func attachSigner(signer: Signer) throws 
     
     /**
-     * Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
+     * Execute a CosmWasm contract (synchronous wrapper).
+     * Mirrors xion.js GranteeSignerClient behavior:
+     * - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
+     * using the granter as the contract sender and the signer as the grantee.
+     * - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
      */
-    func buildExecuteContractMessage(contractAddress: String, msg: Data, funds: [Coin]) throws  -> Message
-    
-    /**
-     * Build an FFI-safe instantiate-contract message for use with `sign_and_broadcast_multi`.
-     */
-    func buildInstantiateContractMessage(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin]) throws  -> Message
-    
-    /**
-     * Build an FFI-safe send message for use with `sign_and_broadcast_multi`.
-     */
-    func buildSendMessage(toAddress: String, amount: [Coin]) throws  -> Message
-    
-    /**
-     * Build an FFI-safe store-code message for use with `sign_and_broadcast_multi`.
-     */
-    func buildStoreCodeMessage(wasmByteCode: Data) throws  -> Message
-    
-    /**
-     * Execute a CosmWasm contract (synchronous wrapper)
-     */
-    func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
+    func executeContract(contractAddress: String, msg: Data, funds: [Coin], granter: String?, feeGranter: String?, memo: String?) throws  -> TxResponse
     
     /**
      * Query account information (synchronous wrapper)
@@ -625,44 +600,18 @@ public protocol ClientProtocol: AnyObject, Sendable {
     func getTx(hash: String) throws  -> TxResponse
     
     /**
-     * Check whether authz grants exist between a granter and grantee.
-     */
-    func hasGrants(granter: String, grantee: String) throws  -> Bool
-    
-    /**
-     * Instantiate an uploaded CosmWasm contract (synchronous wrapper)
-     */
-    func instantiateContract(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
-    
-    /**
      * Check if the node is synced (synchronous wrapper)
      */
     func isSynced() throws  -> Bool
-    
-    /**
-     * Query a CosmWasm smart contract (read-only, synchronous wrapper)
-     */
-    func queryContractSmart(contractAddress: String, queryMsg: Data) throws  -> Data
     
     /**
      * Send tokens to a recipient (synchronous wrapper)
      */
     func send(toAddress: String, amount: [Coin], memo: String?) throws  -> TxResponse
     
-    /**
-     * Sign and broadcast a transaction with multiple FFI-safe messages (synchronous wrapper)
-     */
-    func signAndBroadcastMulti(messages: [Message], memo: String?, gasLimit: UInt64?) throws  -> TxResponse
-    
-    /**
-     * Store a CosmWasm contract (synchronous wrapper)
-     */
-    func storeCode(wasmByteCode: Data, memo: String?, gasLimit: UInt64?) throws  -> TxResponse
-    
 }
 /**
  * RPC client for interacting with the blockchain
- * Only available with "rpc-client" feature (default)
  */
 open class Client: ClientProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -706,12 +655,11 @@ open class Client: ClientProtocol, @unchecked Sendable {
     /**
      * Create a new RPC client (synchronous wrapper for FFI)
      */
-public convenience init(config: ChainConfig, transport: HttpTransport)throws  {
+public convenience init(config: ChainConfig)throws  {
     let handle =
         try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_constructor_client_new(
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeHttpTransport_lower(transport),$0
+        FfiConverterTypeChainConfig_lower(config),$0
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -723,63 +671,13 @@ public convenience init(config: ChainConfig, transport: HttpTransport)throws  {
 
     
     /**
-     * Create a new RPC client with any CryptoSigner implementation attached.
-     *
-     * This accepts foreign (Swift/Kotlin/Python) CryptoSigner implementations,
-     * enabling platform-native cryptographic backends.
+     * Create a new RPC client with a signer attached (synchronous wrapper for FFI)
      */
-public static func newWithCryptoSigner(config: ChainConfig, signer: CryptoSigner, transport: HttpTransport)throws  -> Client  {
-    return try  FfiConverterTypeClient_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_client_new_with_crypto_signer(
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeCryptoSigner_lower(signer),
-        FfiConverterTypeHttpTransport_lower(transport),$0
-    )
-})
-}
-    
-    /**
-     * Create a new RPC client with a session-aware CryptoSigner attached.
-     *
-     * This accepts foreign (Swift/Kotlin/Python) CryptoSigner implementations
-     * and applies session/authz semantics in Rust.
-     */
-public static func newWithSessionCryptoSigner(config: ChainConfig, signer: CryptoSigner, metadata: SessionMetadata, transport: HttpTransport)throws  -> Client  {
-    return try  FfiConverterTypeClient_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_client_new_with_session_crypto_signer(
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeCryptoSigner_lower(signer),
-        FfiConverterTypeSessionMetadata_lower(metadata),
-        FfiConverterTypeHttpTransport_lower(transport),$0
-    )
-})
-}
-    
-    /**
-     * Create a new RPC client with a RustSigner attached in session/authz mode.
-     */
-public static func newWithSessionSigner(config: ChainConfig, signer: RustSigner, metadata: SessionMetadata, transport: HttpTransport)throws  -> Client  {
-    return try  FfiConverterTypeClient_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_client_new_with_session_signer(
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeRustSigner_lower(signer),
-        FfiConverterTypeSessionMetadata_lower(metadata),
-        FfiConverterTypeHttpTransport_lower(transport),$0
-    )
-})
-}
-    
-    /**
-     * Create a new RPC client with a RustSigner attached (synchronous wrapper for FFI)
-     *
-     * Note: This constructor is only available with the `rust-signer` feature.
-     */
-public static func newWithSigner(config: ChainConfig, signer: RustSigner, transport: HttpTransport)throws  -> Client  {
+public static func newWithSigner(config: ChainConfig, signer: Signer)throws  -> Client  {
     return try  FfiConverterTypeClient_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_constructor_client_new_with_signer(
         FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeRustSigner_lower(signer),
-        FfiConverterTypeHttpTransport_lower(transport),$0
+        FfiConverterTypeSigner_lower(signer),$0
     )
 })
 }
@@ -788,84 +686,32 @@ public static func newWithSigner(config: ChainConfig, signer: RustSigner, transp
     
     /**
      * Attach a signer to the client
-     *
-     * Note: This method is only available with the `rust-signer` feature.
      */
-open func attachSigner(signer: RustSigner)throws   {try rustCallWithError(FfiConverterTypeMobError_lift) {
+open func attachSigner(signer: Signer)throws   {try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_method_client_attach_signer(
             self.uniffiCloneHandle(),
-        FfiConverterTypeRustSigner_lower(signer),$0
+        FfiConverterTypeSigner_lower(signer),$0
     )
 }
 }
     
     /**
-     * Build an FFI-safe execute-contract message for use with `sign_and_broadcast_multi`.
+     * Execute a CosmWasm contract (synchronous wrapper).
+     * Mirrors xion.js GranteeSignerClient behavior:
+     * - If `granter` is set, wraps MsgExecuteContract in MsgExec (authz),
+     * using the granter as the contract sender and the signer as the grantee.
+     * - If `fee_granter` is set, the fee granter (e.g. treasury) pays gas.
      */
-open func buildExecuteContractMessage(contractAddress: String, msg: Data, funds: [Coin])throws  -> Message  {
-    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_build_execute_contract_message(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(contractAddress),
-        FfiConverterData.lower(msg),
-        FfiConverterSequenceTypeCoin.lower(funds),$0
-    )
-})
-}
-    
-    /**
-     * Build an FFI-safe instantiate-contract message for use with `sign_and_broadcast_multi`.
-     */
-open func buildInstantiateContractMessage(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin])throws  -> Message  {
-    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_build_instantiate_contract_message(
-            self.uniffiCloneHandle(),
-        FfiConverterOptionString.lower(admin),
-        FfiConverterUInt64.lower(codeId),
-        FfiConverterOptionString.lower(label),
-        FfiConverterData.lower(msg),
-        FfiConverterSequenceTypeCoin.lower(funds),$0
-    )
-})
-}
-    
-    /**
-     * Build an FFI-safe send message for use with `sign_and_broadcast_multi`.
-     */
-open func buildSendMessage(toAddress: String, amount: [Coin])throws  -> Message  {
-    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_build_send_message(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(toAddress),
-        FfiConverterSequenceTypeCoin.lower(amount),$0
-    )
-})
-}
-    
-    /**
-     * Build an FFI-safe store-code message for use with `sign_and_broadcast_multi`.
-     */
-open func buildStoreCodeMessage(wasmByteCode: Data)throws  -> Message  {
-    return try  FfiConverterTypeMessage_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_build_store_code_message(
-            self.uniffiCloneHandle(),
-        FfiConverterData.lower(wasmByteCode),$0
-    )
-})
-}
-    
-    /**
-     * Execute a CosmWasm contract (synchronous wrapper)
-     */
-open func executeContract(contractAddress: String, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
+open func executeContract(contractAddress: String, msg: Data, funds: [Coin], granter: String?, feeGranter: String?, memo: String?)throws  -> TxResponse  {
     return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_method_client_execute_contract(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(contractAddress),
         FfiConverterData.lower(msg),
         FfiConverterSequenceTypeCoin.lower(funds),
-        FfiConverterOptionString.lower(memo),
-        FfiConverterOptionUInt64.lower(gasLimit),$0
+        FfiConverterOptionString.lower(granter),
+        FfiConverterOptionString.lower(feeGranter),
+        FfiConverterOptionString.lower(memo),$0
     )
 })
 }
@@ -942,56 +788,12 @@ open func getTx(hash: String)throws  -> TxResponse  {
 }
     
     /**
-     * Check whether authz grants exist between a granter and grantee.
-     */
-open func hasGrants(granter: String, grantee: String)throws  -> Bool  {
-    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_has_grants(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(granter),
-        FfiConverterString.lower(grantee),$0
-    )
-})
-}
-    
-    /**
-     * Instantiate an uploaded CosmWasm contract (synchronous wrapper)
-     */
-open func instantiateContract(admin: String?, codeId: UInt64, label: String?, msg: Data, funds: [Coin], memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
-    return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_instantiate_contract(
-            self.uniffiCloneHandle(),
-        FfiConverterOptionString.lower(admin),
-        FfiConverterUInt64.lower(codeId),
-        FfiConverterOptionString.lower(label),
-        FfiConverterData.lower(msg),
-        FfiConverterSequenceTypeCoin.lower(funds),
-        FfiConverterOptionString.lower(memo),
-        FfiConverterOptionUInt64.lower(gasLimit),$0
-    )
-})
-}
-    
-    /**
      * Check if the node is synced (synchronous wrapper)
      */
 open func isSynced()throws  -> Bool  {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
     uniffi_mob_fn_method_client_is_synced(
             self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Query a CosmWasm smart contract (read-only, synchronous wrapper)
-     */
-open func queryContractSmart(contractAddress: String, queryMsg: Data)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_query_contract_smart(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(contractAddress),
-        FfiConverterData.lower(queryMsg),$0
     )
 })
 }
@@ -1006,34 +808,6 @@ open func send(toAddress: String, amount: [Coin], memo: String?)throws  -> TxRes
         FfiConverterString.lower(toAddress),
         FfiConverterSequenceTypeCoin.lower(amount),
         FfiConverterOptionString.lower(memo),$0
-    )
-})
-}
-    
-    /**
-     * Sign and broadcast a transaction with multiple FFI-safe messages (synchronous wrapper)
-     */
-open func signAndBroadcastMulti(messages: [Message], memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
-    return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_sign_and_broadcast_multi(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceTypeMessage.lower(messages),
-        FfiConverterOptionString.lower(memo),
-        FfiConverterOptionUInt64.lower(gasLimit),$0
-    )
-})
-}
-    
-    /**
-     * Store a CosmWasm contract (synchronous wrapper)
-     */
-open func storeCode(wasmByteCode: Data, memo: String?, gasLimit: UInt64?)throws  -> TxResponse  {
-    return try  FfiConverterTypeTxResponse_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_client_store_code(
-            self.uniffiCloneHandle(),
-        FfiConverterData.lower(wasmByteCode),
-        FfiConverterOptionString.lower(memo),
-        FfiConverterOptionUInt64.lower(gasLimit),$0
     )
 })
 }
@@ -1089,1045 +863,9 @@ public func FfiConverterTypeClient_lower(_ value: Client) -> UInt64 {
 
 
 /**
- * Trait for cryptographic signing operations
- *
- * This trait defines the core signing interface that can be implemented
- * in Rust or in foreign languages (Python, Swift, Kotlin, etc.) to provide
- * custom cryptographic implementations.
- *
- * # Requirements
- *
- * Implementations MUST:
- * - Return compressed secp256k1 public keys (33 bytes, format: 0x02/0x03 + 32-byte X coordinate)
- * - Sign SHA256 prehashed messages
- * - Return normalized secp256k1 signatures (64 bytes, r||s in big-endian, low-S form)
- * - Be thread-safe (Send + Sync)
- *
- * # Example
- *
- * ```rust,no_run
- * use mob::{CryptoSigner, SignerError};
- * use std::sync::Arc;
- *
- * struct MyCryptoSigner {
- * address: String,
- * pub_key: Vec<u8>,
- * prefix: String,
- * }
- *
- * impl CryptoSigner for MyCryptoSigner {
- * fn address(&self) -> String {
- * self.address.clone()
- * }
- *
- * fn public_key(&self) -> Vec<u8> {
- * self.pub_key.clone()
- * }
- *
- * fn address_prefix(&self) -> String {
- * self.prefix.clone()
- * }
- *
- * fn sign_bytes(&self, message: Vec<u8>) -> std::result::Result<Vec<u8>, SignerError> {
- * // Custom signing implementation
- * Ok(vec![0u8; 64]) // Return 64-byte signature
- * }
- * }
- * ```
+ * A signer that manages keys and can sign transactions
  */
-public protocol CryptoSigner: AnyObject, Sendable {
-    
-    /**
-     * Get the signer's bech32 address
-     *
-     * Returns the address string (e.g., "xion1abc...")
-     */
-    func address()  -> String
-    
-    /**
-     * Get the signer's compressed secp256k1 public key
-     *
-     * Returns 33 bytes in compressed format:
-     * - First byte: 0x02 (even Y) or 0x03 (odd Y)
-     * - Remaining 32 bytes: X coordinate
-     */
-    func publicKey()  -> Data
-    
-    /**
-     * Get the address prefix
-     *
-     * Returns the bech32 prefix (e.g., "xion")
-     */
-    func addressPrefix()  -> String
-    
-    /**
-     * Sign arbitrary bytes with secp256k1 ECDSA
-     *
-     * # Parameters
-     * - `message`: The message bytes to sign
-     *
-     * # Returns
-     * 64-byte signature in format: r (32 bytes) || s (32 bytes)
-     * - r and s are big-endian encoded
-     * - Signature MUST be normalized to low-S form (s <= curve_order / 2)
-     *
-     * # Implementation Notes
-     * 1. Hash the message with SHA256
-     * 2. Sign the hash with secp256k1 ECDSA
-     * 3. Normalize the signature to low-S form
-     * 4. Return r||s as 64 bytes
-     */
-    func signBytes(message: Data) throws  -> Data
-    
-}
-/**
- * Trait for cryptographic signing operations
- *
- * This trait defines the core signing interface that can be implemented
- * in Rust or in foreign languages (Python, Swift, Kotlin, etc.) to provide
- * custom cryptographic implementations.
- *
- * # Requirements
- *
- * Implementations MUST:
- * - Return compressed secp256k1 public keys (33 bytes, format: 0x02/0x03 + 32-byte X coordinate)
- * - Sign SHA256 prehashed messages
- * - Return normalized secp256k1 signatures (64 bytes, r||s in big-endian, low-S form)
- * - Be thread-safe (Send + Sync)
- *
- * # Example
- *
- * ```rust,no_run
- * use mob::{CryptoSigner, SignerError};
- * use std::sync::Arc;
- *
- * struct MyCryptoSigner {
- * address: String,
- * pub_key: Vec<u8>,
- * prefix: String,
- * }
- *
- * impl CryptoSigner for MyCryptoSigner {
- * fn address(&self) -> String {
- * self.address.clone()
- * }
- *
- * fn public_key(&self) -> Vec<u8> {
- * self.pub_key.clone()
- * }
- *
- * fn address_prefix(&self) -> String {
- * self.prefix.clone()
- * }
- *
- * fn sign_bytes(&self, message: Vec<u8>) -> std::result::Result<Vec<u8>, SignerError> {
- * // Custom signing implementation
- * Ok(vec![0u8; 64]) // Return 64-byte signature
- * }
- * }
- * ```
- */
-open class CryptoSignerImpl: CryptoSigner, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mob_fn_clone_cryptosigner(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        try! rustCall { uniffi_mob_fn_free_cryptosigner(handle, $0) }
-    }
-
-    
-
-    
-    /**
-     * Get the signer's bech32 address
-     *
-     * Returns the address string (e.g., "xion1abc...")
-     */
-open func address() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_cryptosigner_address(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get the signer's compressed secp256k1 public key
-     *
-     * Returns 33 bytes in compressed format:
-     * - First byte: 0x02 (even Y) or 0x03 (odd Y)
-     * - Remaining 32 bytes: X coordinate
-     */
-open func publicKey() -> Data  {
-    return try!  FfiConverterData.lift(try! rustCall() {
-    uniffi_mob_fn_method_cryptosigner_public_key(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get the address prefix
-     *
-     * Returns the bech32 prefix (e.g., "xion")
-     */
-open func addressPrefix() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_cryptosigner_address_prefix(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Sign arbitrary bytes with secp256k1 ECDSA
-     *
-     * # Parameters
-     * - `message`: The message bytes to sign
-     *
-     * # Returns
-     * 64-byte signature in format: r (32 bytes) || s (32 bytes)
-     * - r and s are big-endian encoded
-     * - Signature MUST be normalized to low-S form (s <= curve_order / 2)
-     *
-     * # Implementation Notes
-     * 1. Hash the message with SHA256
-     * 2. Sign the hash with secp256k1 ECDSA
-     * 3. Normalize the signature to low-S form
-     * 4. Return r||s as 64 bytes
-     */
-open func signBytes(message: Data)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeSignerError_lift) {
-    uniffi_mob_fn_method_cryptosigner_sign_bytes(
-            self.uniffiCloneHandle(),
-        FfiConverterData.lower(message),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceCryptoSigner {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceCryptoSigner] = [UniffiVTableCallbackInterfaceCryptoSigner(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeCryptoSigner.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface CryptoSigner: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeCryptoSigner.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface CryptoSigner: handle missing in uniffiClone")
-            }
-        },
-        address: { (
-            uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> String in
-                guard let uniffiObj = try? FfiConverterTypeCryptoSigner.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.address(
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        publicKey: { (
-            uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> Data in
-                guard let uniffiObj = try? FfiConverterTypeCryptoSigner.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.publicKey(
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        addressPrefix: { (
-            uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> String in
-                guard let uniffiObj = try? FfiConverterTypeCryptoSigner.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.addressPrefix(
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        signBytes: { (
-            uniffiHandle: UInt64,
-            message: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> Data in
-                guard let uniffiObj = try? FfiConverterTypeCryptoSigner.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try uniffiObj.signBytes(
-                     message: try FfiConverterData.lift(message)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn,
-                lowerError: FfiConverterTypeSignerError_lower
-            )
-        }
-    )]
-}
-
-private func uniffiCallbackInitCryptoSigner() {
-    uniffi_mob_fn_init_callback_vtable_cryptosigner(UniffiCallbackInterfaceCryptoSigner.vtable)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeCryptoSigner: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<CryptoSigner>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = CryptoSigner
-
-    public static func lift(_ handle: UInt64) throws -> CryptoSigner {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return CryptoSignerImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: CryptoSigner) -> UInt64 {
-         if let rustImpl = value as? CryptoSignerImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptoSigner {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: CryptoSigner, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCryptoSigner_lift(_ handle: UInt64) throws -> CryptoSigner {
-    return try FfiConverterTypeCryptoSigner.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCryptoSigner_lower(_ value: CryptoSigner) -> UInt64 {
-    return FfiConverterTypeCryptoSigner.lower(value)
-}
-
-
-
-
-
-
-/**
- * Trait for HTTP transport operations.
- *
- * Implement this in native code (Swift/Kotlin/Python) to use platform-native
- * HTTP clients (URLSession, OkHttp, etc.) with their own TLS stacks.
- *
- * The transport is used by `NativeRpcClient` to send JSON-RPC requests
- * to a Tendermint RPC endpoint.
- */
-public protocol HttpTransport: AnyObject, Sendable {
-    
-    /**
-     * POST a JSON body to the given URL and return the response bytes.
-     *
-     * # Parameters
-     * - `url`: The full URL to POST to (e.g., "https://rpc.example.com:443")
-     * - `body`: The JSON-RPC request body as raw bytes
-     *
-     * # Returns
-     * The response body as raw bytes on success.
-     */
-    func post(url: String, body: Data) throws  -> Data
-    
-}
-/**
- * Trait for HTTP transport operations.
- *
- * Implement this in native code (Swift/Kotlin/Python) to use platform-native
- * HTTP clients (URLSession, OkHttp, etc.) with their own TLS stacks.
- *
- * The transport is used by `NativeRpcClient` to send JSON-RPC requests
- * to a Tendermint RPC endpoint.
- */
-open class HttpTransportImpl: HttpTransport, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mob_fn_clone_httptransport(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        try! rustCall { uniffi_mob_fn_free_httptransport(handle, $0) }
-    }
-
-    
-
-    
-    /**
-     * POST a JSON body to the given URL and return the response bytes.
-     *
-     * # Parameters
-     * - `url`: The full URL to POST to (e.g., "https://rpc.example.com:443")
-     * - `body`: The JSON-RPC request body as raw bytes
-     *
-     * # Returns
-     * The response body as raw bytes on success.
-     */
-open func post(url: String, body: Data)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeTransportError_lift) {
-    uniffi_mob_fn_method_httptransport_post(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(url),
-        FfiConverterData.lower(body),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceHttpTransport {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceHttpTransport] = [UniffiVTableCallbackInterfaceHttpTransport(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeHttpTransport.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface HttpTransport: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeHttpTransport.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface HttpTransport: handle missing in uniffiClone")
-            }
-        },
-        post: { (
-            uniffiHandle: UInt64,
-            url: RustBuffer,
-            body: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> Data in
-                guard let uniffiObj = try? FfiConverterTypeHttpTransport.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try uniffiObj.post(
-                     url: try FfiConverterString.lift(url),
-                     body: try FfiConverterData.lift(body)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn,
-                lowerError: FfiConverterTypeTransportError_lower
-            )
-        }
-    )]
-}
-
-private func uniffiCallbackInitHttpTransport() {
-    uniffi_mob_fn_init_callback_vtable_httptransport(UniffiCallbackInterfaceHttpTransport.vtable)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeHttpTransport: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<HttpTransport>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = HttpTransport
-
-    public static func lift(_ handle: UInt64) throws -> HttpTransport {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return HttpTransportImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: HttpTransport) -> UInt64 {
-         if let rustImpl = value as? HttpTransportImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpTransport {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: HttpTransport, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpTransport_lift(_ handle: UInt64) throws -> HttpTransport {
-    return try FfiConverterTypeHttpTransport.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpTransport_lower(_ value: HttpTransport) -> UInt64 {
-    return FfiConverterTypeHttpTransport.lower(value)
-}
-
-
-
-
-
-
-/**
- * Manages session key lifecycle: generation, activation, export/restore.
- *
- * This object is designed to be the single point of session management across
- * all language bindings. The host is responsible only for persisting the opaque
- * bytes returned by `export()` and passing them back to `restore()`.
- *
- * Typical flow:
- * 1. `MobSessionManager::new("xion")` — create a manager
- * 2. `generate_session_key()` — creates a random signer, returns address + pubkey
- * 3. (host opens dashboard auth, gets granter address + expiry)
- * 4. `activate(metadata, config)` — pairs the signer with a client
- * 5. `export()` — host persists the returned bytes
- * 6. Later: `MobSessionManager::restore(bytes, config)` — recreates everything
- */
-public protocol MobSessionManagerProtocol: AnyObject, Sendable {
-    
-    /**
-     * Activate the session after dashboard auth returns the grant details.
-     *
-     * Creates a `Client` with the session signer attached. After this call,
-     * `client()` returns a usable signing client.
-     */
-    func activate(metadata: SessionMetadata, config: ChainConfig, transport: HttpTransport) throws 
-    
-    /**
-     * Get the signing client. Returns an error if no session is active.
-     */
-    func client() throws  -> Client
-    
-    /**
-     * Deactivate the current session, releasing the client and metadata.
-     *
-     * The signer and private key are also cleared. After this call,
-     * `is_active()` returns false and `client()` returns an error.
-     */
-    func deactivate() 
-    
-    /**
-     * Serialize the session state (private key + metadata) to an opaque byte blob.
-     *
-     * The host should persist these bytes (AsyncStorage, Keychain, etc.) and pass
-     * them to `restore()` on the next app launch.
-     */
-    func exportSession() throws  -> Data
-    
-    /**
-     * Generate a random session key. Returns the address and public key hex.
-     *
-     * The private key is held in memory and included in `export()` output.
-     * Call this before opening dashboard auth — pass the returned address
-     * as the grantee.
-     */
-    func generateSessionKey() throws  -> SignerInfo
-    
-    /**
-     * The grantee (session key) address.
-     */
-    func granteeAddress()  -> String?
-    
-    /**
-     * The granter (main account) address, if a session is active.
-     */
-    func granterAddress()  -> String?
-    
-    /**
-     * Whether a session is active (key generated, metadata set, not expired).
-     */
-    func isActive()  -> Bool
-    
-    /**
-     * Get the session metadata, if active.
-     */
-    func metadata()  -> SessionMetadata?
-    
-    /**
-     * The session key's public key as hex.
-     */
-    func publicKeyHex()  -> String?
-    
-    /**
-     * Sign arbitrary bytes with the session key.
-     *
-     * Useful for ADR-036 signArb or any off-chain signing that doesn't
-     * require a full transaction broadcast.
-     */
-    func signBytes(message: Data) throws  -> Data
-    
-}
-/**
- * Manages session key lifecycle: generation, activation, export/restore.
- *
- * This object is designed to be the single point of session management across
- * all language bindings. The host is responsible only for persisting the opaque
- * bytes returned by `export()` and passing them back to `restore()`.
- *
- * Typical flow:
- * 1. `MobSessionManager::new("xion")` — create a manager
- * 2. `generate_session_key()` — creates a random signer, returns address + pubkey
- * 3. (host opens dashboard auth, gets granter address + expiry)
- * 4. `activate(metadata, config)` — pairs the signer with a client
- * 5. `export()` — host persists the returned bytes
- * 6. Later: `MobSessionManager::restore(bytes, config)` — recreates everything
- */
-open class MobSessionManager: MobSessionManagerProtocol, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mob_fn_clone_mobsessionmanager(self.handle, $0) }
-    }
-    /**
-     * Create a new session manager for the given address prefix.
-     */
-public convenience init(addressPrefix: String) {
-    let handle =
-        try! rustCall() {
-    uniffi_mob_fn_constructor_mobsessionmanager_new(
-        FfiConverterString.lower(addressPrefix),$0
-    )
-}
-    self.init(unsafeFromHandle: handle)
-}
-
-    deinit {
-        try! rustCall { uniffi_mob_fn_free_mobsessionmanager(handle, $0) }
-    }
-
-    
-    /**
-     * Restore a session from previously exported bytes.
-     *
-     * Recreates the signer and client. Returns an error if the session is expired
-     * or the data is malformed.
-     */
-public static func restore(data: Data, config: ChainConfig, transport: HttpTransport)throws  -> MobSessionManager  {
-    return try  FfiConverterTypeMobSessionManager_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_mobsessionmanager_restore(
-        FfiConverterData.lower(data),
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeHttpTransport_lower(transport),$0
-    )
-})
-}
-    
-
-    
-    /**
-     * Activate the session after dashboard auth returns the grant details.
-     *
-     * Creates a `Client` with the session signer attached. After this call,
-     * `client()` returns a usable signing client.
-     */
-open func activate(metadata: SessionMetadata, config: ChainConfig, transport: HttpTransport)throws   {try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_mobsessionmanager_activate(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeSessionMetadata_lower(metadata),
-        FfiConverterTypeChainConfig_lower(config),
-        FfiConverterTypeHttpTransport_lower(transport),$0
-    )
-}
-}
-    
-    /**
-     * Get the signing client. Returns an error if no session is active.
-     */
-open func client()throws  -> Client  {
-    return try  FfiConverterTypeClient_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_mobsessionmanager_client(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Deactivate the current session, releasing the client and metadata.
-     *
-     * The signer and private key are also cleared. After this call,
-     * `is_active()` returns false and `client()` returns an error.
-     */
-open func deactivate()  {try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_deactivate(
-            self.uniffiCloneHandle(),$0
-    )
-}
-}
-    
-    /**
-     * Serialize the session state (private key + metadata) to an opaque byte blob.
-     *
-     * The host should persist these bytes (AsyncStorage, Keychain, etc.) and pass
-     * them to `restore()` on the next app launch.
-     */
-open func exportSession()throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_mobsessionmanager_export_session(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Generate a random session key. Returns the address and public key hex.
-     *
-     * The private key is held in memory and included in `export()` output.
-     * Call this before opening dashboard auth — pass the returned address
-     * as the grantee.
-     */
-open func generateSessionKey()throws  -> SignerInfo  {
-    return try  FfiConverterTypeSignerInfo_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_mobsessionmanager_generate_session_key(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * The grantee (session key) address.
-     */
-open func granteeAddress() -> String?  {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_grantee_address(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * The granter (main account) address, if a session is active.
-     */
-open func granterAddress() -> String?  {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_granter_address(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Whether a session is active (key generated, metadata set, not expired).
-     */
-open func isActive() -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_is_active(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get the session metadata, if active.
-     */
-open func metadata() -> SessionMetadata?  {
-    return try!  FfiConverterOptionTypeSessionMetadata.lift(try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_metadata(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * The session key's public key as hex.
-     */
-open func publicKeyHex() -> String?  {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_mob_fn_method_mobsessionmanager_public_key_hex(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Sign arbitrary bytes with the session key.
-     *
-     * Useful for ADR-036 signArb or any off-chain signing that doesn't
-     * require a full transaction broadcast.
-     */
-open func signBytes(message: Data)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_mobsessionmanager_sign_bytes(
-            self.uniffiCloneHandle(),
-        FfiConverterData.lower(message),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeMobSessionManager: FfiConverter {
-    typealias FfiType = UInt64
-    typealias SwiftType = MobSessionManager
-
-    public static func lift(_ handle: UInt64) throws -> MobSessionManager {
-        return MobSessionManager(unsafeFromHandle: handle)
-    }
-
-    public static func lower(_ value: MobSessionManager) -> UInt64 {
-        return value.uniffiCloneHandle()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MobSessionManager {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: MobSessionManager, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMobSessionManager_lift(_ handle: UInt64) throws -> MobSessionManager {
-    return try FfiConverterTypeMobSessionManager.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMobSessionManager_lower(_ value: MobSessionManager) -> UInt64 {
-    return FfiConverterTypeMobSessionManager.lower(value)
-}
-
-
-
-
-
-
-/**
- * Pure Rust implementation of the CryptoSigner trait
- *
- * This signer uses Rust's k256 and bip32 libraries for all cryptographic operations.
- * It implements BIP39 mnemonic support and BIP32 hierarchical deterministic key derivation.
- */
-public protocol RustSignerProtocol: AnyObject, Sendable {
+public protocol SignerProtocol: AnyObject, Sendable {
     
     /**
      * Get the signer's address
@@ -2151,12 +889,9 @@ public protocol RustSignerProtocol: AnyObject, Sendable {
     
 }
 /**
- * Pure Rust implementation of the CryptoSigner trait
- *
- * This signer uses Rust's k256 and bip32 libraries for all cryptographic operations.
- * It implements BIP39 mnemonic support and BIP32 hierarchical deterministic key derivation.
+ * A signer that manages keys and can sign transactions
  */
-open class RustSigner: RustSignerProtocol, @unchecked Sendable {
+open class Signer: SignerProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
     /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
@@ -2193,21 +928,21 @@ open class RustSigner: RustSignerProtocol, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mob_fn_clone_rustsigner(self.handle, $0) }
+        return try! rustCall { uniffi_mob_fn_clone_signer(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
     deinit {
-        try! rustCall { uniffi_mob_fn_free_rustsigner(handle, $0) }
+        try! rustCall { uniffi_mob_fn_free_signer(handle, $0) }
     }
 
     
     /**
      * Create a new signer from a mnemonic phrase
      */
-public static func fromMnemonic(mnemonic: String, addressPrefix: String, derivationPath: String?)throws  -> RustSigner  {
-    return try  FfiConverterTypeRustSigner_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_rustsigner_from_mnemonic(
+public static func fromMnemonic(mnemonic: String, addressPrefix: String, derivationPath: String?)throws  -> Signer  {
+    return try  FfiConverterTypeSigner_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
+    uniffi_mob_fn_constructor_signer_from_mnemonic(
         FfiConverterString.lower(mnemonic),
         FfiConverterString.lower(addressPrefix),
         FfiConverterOptionString.lower(derivationPath),$0
@@ -2222,7 +957,7 @@ public static func fromMnemonic(mnemonic: String, addressPrefix: String, derivat
      */
 open func address() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_rustsigner_address(
+    uniffi_mob_fn_method_signer_address(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2233,7 +968,7 @@ open func address() -> String  {
      */
 open func addressPrefix() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_rustsigner_address_prefix(
+    uniffi_mob_fn_method_signer_address_prefix(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2244,7 +979,7 @@ open func addressPrefix() -> String  {
      */
 open func publicKeyHex() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_rustsigner_public_key_hex(
+    uniffi_mob_fn_method_signer_public_key_hex(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2255,7 +990,7 @@ open func publicKeyHex() -> String  {
      */
 open func signBytes(message: Data)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_method_rustsigner_sign_bytes(
+    uniffi_mob_fn_method_signer_sign_bytes(
             self.uniffiCloneHandle(),
         FfiConverterData.lower(message),$0
     )
@@ -2270,24 +1005,24 @@ open func signBytes(message: Data)throws  -> Data  {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeRustSigner: FfiConverter {
+public struct FfiConverterTypeSigner: FfiConverter {
     typealias FfiType = UInt64
-    typealias SwiftType = RustSigner
+    typealias SwiftType = Signer
 
-    public static func lift(_ handle: UInt64) throws -> RustSigner {
-        return RustSigner(unsafeFromHandle: handle)
+    public static func lift(_ handle: UInt64) throws -> Signer {
+        return Signer(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: RustSigner) -> UInt64 {
+    public static func lower(_ value: Signer) -> UInt64 {
         return value.uniffiCloneHandle()
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RustSigner {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Signer {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
 
-    public static func write(_ value: RustSigner, into buf: inout [UInt8]) {
+    public static func write(_ value: Signer, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
@@ -2296,259 +1031,15 @@ public struct FfiConverterTypeRustSigner: FfiConverter {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRustSigner_lift(_ handle: UInt64) throws -> RustSigner {
-    return try FfiConverterTypeRustSigner.lift(handle)
+public func FfiConverterTypeSigner_lift(_ handle: UInt64) throws -> Signer {
+    return try FfiConverterTypeSigner.lift(handle)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRustSigner_lower(_ value: RustSigner) -> UInt64 {
-    return FfiConverterTypeRustSigner.lower(value)
-}
-
-
-
-
-
-
-/**
- * A session signer that wraps messages in MsgExec (Authz) for session key usage
- *
- * This works with any implementation of CryptoSigner, allowing language-specific
- * cryptographic implementations while automatically wrapping all messages in authz.
- */
-public protocol SessionSignerProtocol: AnyObject, Sendable {
-    
-    /**
-     * Get the grantee address (the session key address)
-     */
-    func granteeAddress()  -> String
-    
-    /**
-     * Get the granter address (the main account)
-     */
-    func granterAddress()  -> String
-    
-    /**
-     * Check if session is expired
-     */
-    func isExpired()  -> Bool
-    
-    /**
-     * Get session metadata
-     */
-    func metadata()  -> SessionMetadata
-    
-    /**
-     * Get the session key's public key as hex
-     */
-    func publicKeyHex()  -> String
-    
-    /**
-     * Get remaining session time in seconds
-     */
-    func remainingSeconds()  -> UInt64
-    
-}
-/**
- * A session signer that wraps messages in MsgExec (Authz) for session key usage
- *
- * This works with any implementation of CryptoSigner, allowing language-specific
- * cryptographic implementations while automatically wrapping all messages in authz.
- */
-open class SessionSigner: SessionSignerProtocol, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mob_fn_clone_sessionsigner(self.handle, $0) }
-    }
-    /**
-     * Create a new session signer from a RustSigner and metadata
-     *
-     * # Parameters
-     * - `session_key`: RustSigner instance
-     * - `metadata`: Session metadata with expiration and granter info
-     *
-     * Note: This constructor is only available with the `rust-signer` feature for FFI.
-     * Rust code can use `with_signer()` to accept any CryptoSigner implementation.
-     */
-public convenience init(sessionKey: RustSigner, metadata: SessionMetadata)throws  {
-    let handle =
-        try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_sessionsigner_new(
-        FfiConverterTypeRustSigner_lower(sessionKey),
-        FfiConverterTypeSessionMetadata_lower(metadata),$0
-    )
-}
-    self.init(unsafeFromHandle: handle)
-}
-
-    deinit {
-        try! rustCall { uniffi_mob_fn_free_sessionsigner(handle, $0) }
-    }
-
-    
-    /**
-     * Create a session signer from a private key with duration
-     *
-     * Note: This constructor is only available with the `rust-signer` feature.
-     */
-public static func fromPrivateKey(privateKey: Data, addressPrefix: String, granterAddress: String, durationSeconds: UInt64)throws  -> SessionSigner  {
-    return try  FfiConverterTypeSessionSigner_lift(try rustCallWithError(FfiConverterTypeMobError_lift) {
-    uniffi_mob_fn_constructor_sessionsigner_from_private_key(
-        FfiConverterData.lower(privateKey),
-        FfiConverterString.lower(addressPrefix),
-        FfiConverterString.lower(granterAddress),
-        FfiConverterUInt64.lower(durationSeconds),$0
-    )
-})
-}
-    
-
-    
-    /**
-     * Get the grantee address (the session key address)
-     */
-open func granteeAddress() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_grantee_address(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get the granter address (the main account)
-     */
-open func granterAddress() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_granter_address(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Check if session is expired
-     */
-open func isExpired() -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_is_expired(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get session metadata
-     */
-open func metadata() -> SessionMetadata  {
-    return try!  FfiConverterTypeSessionMetadata_lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_metadata(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get the session key's public key as hex
-     */
-open func publicKeyHex() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_public_key_hex(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Get remaining session time in seconds
-     */
-open func remainingSeconds() -> UInt64  {
-    return try!  FfiConverterUInt64.lift(try! rustCall() {
-    uniffi_mob_fn_method_sessionsigner_remaining_seconds(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSessionSigner: FfiConverter {
-    typealias FfiType = UInt64
-    typealias SwiftType = SessionSigner
-
-    public static func lift(_ handle: UInt64) throws -> SessionSigner {
-        return SessionSigner(unsafeFromHandle: handle)
-    }
-
-    public static func lower(_ value: SessionSigner) -> UInt64 {
-        return value.uniffiCloneHandle()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionSigner {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: SessionSigner, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionSigner_lift(_ handle: UInt64) throws -> SessionSigner {
-    return try FfiConverterTypeSessionSigner.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionSigner_lower(_ value: SessionSigner) -> UInt64 {
-    return FfiConverterTypeSessionSigner.lower(value)
+public func FfiConverterTypeSigner_lower(_ value: Signer) -> UInt64 {
+    return FfiConverterTypeSigner.lower(value)
 }
 
 
@@ -2627,26 +1118,16 @@ public struct ChainConfig: Equatable, Hashable {
     public var addressPrefix: String
     public var coinType: UInt32
     public var gasPrice: String
-    /**
-     * Optional fee granter address (e.g. treasury contract).
-     * When set, all transactions include this address as the fee granter.
-     */
-    public var feeGranter: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(chainId: String, rpcEndpoint: String, grpcEndpoint: String?, addressPrefix: String, coinType: UInt32, gasPrice: String, 
-        /**
-         * Optional fee granter address (e.g. treasury contract).
-         * When set, all transactions include this address as the fee granter.
-         */feeGranter: String?) {
+    public init(chainId: String, rpcEndpoint: String, grpcEndpoint: String?, addressPrefix: String, coinType: UInt32, gasPrice: String) {
         self.chainId = chainId
         self.rpcEndpoint = rpcEndpoint
         self.grpcEndpoint = grpcEndpoint
         self.addressPrefix = addressPrefix
         self.coinType = coinType
         self.gasPrice = gasPrice
-        self.feeGranter = feeGranter
     }
 
     
@@ -2668,8 +1149,7 @@ public struct FfiConverterTypeChainConfig: FfiConverterRustBuffer {
                 grpcEndpoint: FfiConverterOptionString.read(from: &buf), 
                 addressPrefix: FfiConverterString.read(from: &buf), 
                 coinType: FfiConverterUInt32.read(from: &buf), 
-                gasPrice: FfiConverterString.read(from: &buf), 
-                feeGranter: FfiConverterOptionString.read(from: &buf)
+                gasPrice: FfiConverterString.read(from: &buf)
         )
     }
 
@@ -2680,7 +1160,6 @@ public struct FfiConverterTypeChainConfig: FfiConverterRustBuffer {
         FfiConverterString.write(value.addressPrefix, into: &buf)
         FfiConverterUInt32.write(value.coinType, into: &buf)
         FfiConverterString.write(value.gasPrice, into: &buf)
-        FfiConverterOptionString.write(value.feeGranter, into: &buf)
     }
 }
 
@@ -2815,235 +1294,6 @@ public func FfiConverterTypeFee_lift(_ buf: RustBuffer) throws -> Fee {
 #endif
 public func FfiConverterTypeFee_lower(_ value: Fee) -> RustBuffer {
     return FfiConverterTypeFee.lower(value)
-}
-
-
-/**
- * Message type for transactions
- */
-public struct Message: Equatable, Hashable {
-    public var typeUrl: String
-    public var value: Data
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(typeUrl: String, value: Data) {
-        self.typeUrl = typeUrl
-        self.value = value
-    }
-
-    
-}
-
-#if compiler(>=6)
-extension Message: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeMessage: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Message {
-        return
-            try Message(
-                typeUrl: FfiConverterString.read(from: &buf), 
-                value: FfiConverterData.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: Message, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.typeUrl, into: &buf)
-        FfiConverterData.write(value.value, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMessage_lift(_ buf: RustBuffer) throws -> Message {
-    return try FfiConverterTypeMessage.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMessage_lower(_ value: Message) -> RustBuffer {
-    return FfiConverterTypeMessage.lower(value)
-}
-
-
-/**
- * Session key metadata
- */
-public struct SessionMetadata: Equatable, Hashable {
-    /**
-     * The address that granted this session (the main account)
-     */
-    public var granter: String
-    /**
-     * The address of the session key (grantee)
-     */
-    public var grantee: String
-    /**
-     * Optional fee granter for transactions signed under this session.
-     * Defaults to the granter when omitted.
-     */
-    public var feeGranter: String?
-    /**
-     * Optional fee payer for transactions signed under this session.
-     */
-    public var feePayer: String?
-    /**
-     * When the session was created (Unix timestamp in seconds)
-     */
-    public var createdAt: UInt64
-    /**
-     * When the session expires (Unix timestamp in seconds)
-     */
-    public var expiresAt: UInt64
-    /**
-     * Optional description of the session
-     */
-    public var description: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * The address that granted this session (the main account)
-         */granter: String, 
-        /**
-         * The address of the session key (grantee)
-         */grantee: String, 
-        /**
-         * Optional fee granter for transactions signed under this session.
-         * Defaults to the granter when omitted.
-         */feeGranter: String?, 
-        /**
-         * Optional fee payer for transactions signed under this session.
-         */feePayer: String?, 
-        /**
-         * When the session was created (Unix timestamp in seconds)
-         */createdAt: UInt64, 
-        /**
-         * When the session expires (Unix timestamp in seconds)
-         */expiresAt: UInt64, 
-        /**
-         * Optional description of the session
-         */description: String?) {
-        self.granter = granter
-        self.grantee = grantee
-        self.feeGranter = feeGranter
-        self.feePayer = feePayer
-        self.createdAt = createdAt
-        self.expiresAt = expiresAt
-        self.description = description
-    }
-
-    
-}
-
-#if compiler(>=6)
-extension SessionMetadata: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSessionMetadata: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionMetadata {
-        return
-            try SessionMetadata(
-                granter: FfiConverterString.read(from: &buf), 
-                grantee: FfiConverterString.read(from: &buf), 
-                feeGranter: FfiConverterOptionString.read(from: &buf), 
-                feePayer: FfiConverterOptionString.read(from: &buf), 
-                createdAt: FfiConverterUInt64.read(from: &buf), 
-                expiresAt: FfiConverterUInt64.read(from: &buf), 
-                description: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: SessionMetadata, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.granter, into: &buf)
-        FfiConverterString.write(value.grantee, into: &buf)
-        FfiConverterOptionString.write(value.feeGranter, into: &buf)
-        FfiConverterOptionString.write(value.feePayer, into: &buf)
-        FfiConverterUInt64.write(value.createdAt, into: &buf)
-        FfiConverterUInt64.write(value.expiresAt, into: &buf)
-        FfiConverterOptionString.write(value.description, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionMetadata_lift(_ buf: RustBuffer) throws -> SessionMetadata {
-    return try FfiConverterTypeSessionMetadata.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionMetadata_lower(_ value: SessionMetadata) -> RustBuffer {
-    return FfiConverterTypeSessionMetadata.lower(value)
-}
-
-
-/**
- * Signer address and public key, returned from session manager operations
- */
-public struct SignerInfo: Equatable, Hashable {
-    public var address: String
-    public var publicKeyHex: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(address: String, publicKeyHex: String) {
-        self.address = address
-        self.publicKeyHex = publicKeyHex
-    }
-
-    
-}
-
-#if compiler(>=6)
-extension SignerInfo: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSignerInfo: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignerInfo {
-        return
-            try SignerInfo(
-                address: FfiConverterString.read(from: &buf), 
-                publicKeyHex: FfiConverterString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: SignerInfo, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.address, into: &buf)
-        FfiConverterString.write(value.publicKeyHex, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSignerInfo_lift(_ buf: RustBuffer) throws -> SignerInfo {
-    return try FfiConverterTypeSignerInfo.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSignerInfo_lower(_ value: SignerInfo) -> RustBuffer {
-    return FfiConverterTypeSignerInfo.lower(value)
 }
 
 
@@ -3270,11 +1520,6 @@ public enum MobError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     case Timeout(message: String)
     
     /**
-     * Session expired errors
-     */
-    case SessionExpired(message: String)
-    
-    /**
      * Generic error
      */
     case Generic(message: String)
@@ -3354,11 +1599,7 @@ public struct FfiConverterTypeMobError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 13: return .SessionExpired(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 14: return .Generic(
+        case 13: return .Generic(
             message: try FfiConverterString.read(from: &buf)
         )
         
@@ -3397,10 +1638,8 @@ public struct FfiConverterTypeMobError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(11))
         case .Timeout(_ /* message is ignored*/):
             writeInt(&buf, Int32(12))
-        case .SessionExpired(_ /* message is ignored*/):
-            writeInt(&buf, Int32(13))
         case .Generic(_ /* message is ignored*/):
-            writeInt(&buf, Int32(14))
+            writeInt(&buf, Int32(13))
 
         
         }
@@ -3422,221 +1661,6 @@ public func FfiConverterTypeMobError_lower(_ value: MobError) -> RustBuffer {
     return FfiConverterTypeMobError.lower(value)
 }
 
-
-/**
- * Error types for signer operations that cross FFI boundary
- */
-public enum SignerError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
-
-    
-    
-    /**
-     * Failed to sign data
-     */
-    case SigningFailed(message: String)
-    
-    /**
-     * Invalid key format or data
-     */
-    case InvalidKey(message: String)
-    
-    /**
-     * Invalid signature format
-     */
-    case InvalidSignature(message: String)
-    
-
-    
-
-    
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-    
-}
-
-#if compiler(>=6)
-extension SignerError: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSignerError: FfiConverterRustBuffer {
-    typealias SwiftType = SignerError
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignerError {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .SigningFailed(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 2: return .InvalidKey(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 3: return .InvalidSignature(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: SignerError, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        case .SigningFailed(_ /* message is ignored*/):
-            writeInt(&buf, Int32(1))
-        case .InvalidKey(_ /* message is ignored*/):
-            writeInt(&buf, Int32(2))
-        case .InvalidSignature(_ /* message is ignored*/):
-            writeInt(&buf, Int32(3))
-
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSignerError_lift(_ buf: RustBuffer) throws -> SignerError {
-    return try FfiConverterTypeSignerError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSignerError_lower(_ value: SignerError) -> RustBuffer {
-    return FfiConverterTypeSignerError.lower(value)
-}
-
-
-/**
- * Error types for HTTP transport operations that cross FFI boundary
- */
-public enum TransportError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
-
-    
-    
-    /**
-     * HTTP request failed (non-network error: bad URL, invalid response, etc.)
-     */
-    case RequestFailed(message: String)
-    
-    /**
-     * Network-level error (DNS, timeout, TLS, connection refused, etc.)
-     */
-    case NetworkError(message: String)
-    
-
-    
-
-    
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-    
-}
-
-#if compiler(>=6)
-extension TransportError: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
-    typealias SwiftType = TransportError
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransportError {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .RequestFailed(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 2: return .NetworkError(
-            message: try FfiConverterString.read(from: &buf)
-        )
-        
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: TransportError, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        case let .RequestFailed(message):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(message, into: &buf)
-        case let .NetworkError(message):
-            writeInt(&buf, Int32(2))
-            FfiConverterString.write(message, into: &buf)
-
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransportError_lift(_ buf: RustBuffer) throws -> TransportError {
-    return try FfiConverterTypeTransportError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransportError_lower(_ value: TransportError) -> RustBuffer {
-    return FfiConverterTypeTransportError.lower(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
-    typealias SwiftType = UInt64?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterUInt64.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterUInt64.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -3656,30 +1680,6 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterString.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionTypeSessionMetadata: FfiConverterRustBuffer {
-    typealias SwiftType = SessionMetadata?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeSessionMetadata.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeSessionMetadata.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -3710,31 +1710,6 @@ fileprivate struct FfiConverterSequenceTypeCoin: FfiConverterRustBuffer {
     }
 }
 
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeMessage: FfiConverterRustBuffer {
-    typealias SwiftType = [Message]
-
-    public static func write(_ value: [Message], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeMessage.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Message] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [Message]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeMessage.read(from: &buf))
-        }
-        return seq
-    }
-}
-
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -3750,22 +1725,10 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_mob_checksum_method_client_attach_signer() != 61507) {
+    if (uniffi_mob_checksum_method_client_attach_signer() != 52997) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_build_execute_contract_message() != 30392) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_build_instantiate_contract_message() != 33987) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_build_send_message() != 64106) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_build_store_code_message() != 20893) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_execute_contract() != 20103) {
+    if (uniffi_mob_checksum_method_client_execute_contract() != 61272) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_get_account() != 2621) {
@@ -3786,138 +1749,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mob_checksum_method_client_get_tx() != 58481) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_has_grants() != 39626) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_instantiate_contract() != 29694) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mob_checksum_method_client_is_synced() != 61050) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_client_query_contract_smart() != 3339) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mob_checksum_method_client_send() != 9214) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_sign_and_broadcast_multi() != 18544) {
+    if (uniffi_mob_checksum_method_signer_address() != 11665) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_client_store_code() != 6390) {
+    if (uniffi_mob_checksum_method_signer_address_prefix() != 17461) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_cryptosigner_address() != 26285) {
+    if (uniffi_mob_checksum_method_signer_public_key_hex() != 30197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_cryptosigner_public_key() != 63498) {
+    if (uniffi_mob_checksum_method_signer_sign_bytes() != 10133) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_cryptosigner_address_prefix() != 58975) {
+    if (uniffi_mob_checksum_constructor_client_new() != 24379) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_cryptosigner_sign_bytes() != 63030) {
+    if (uniffi_mob_checksum_constructor_client_new_with_signer() != 15565) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mob_checksum_method_httptransport_post() != 8015) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_activate() != 32786) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_client() != 15880) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_deactivate() != 16087) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_export_session() != 9242) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_generate_session_key() != 61614) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_grantee_address() != 36116) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_granter_address() != 63047) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_is_active() != 58476) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_metadata() != 45912) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_public_key_hex() != 27541) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_mobsessionmanager_sign_bytes() != 37567) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_rustsigner_address() != 52484) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_rustsigner_address_prefix() != 57581) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_rustsigner_public_key_hex() != 48526) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_rustsigner_sign_bytes() != 42215) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_grantee_address() != 6606) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_granter_address() != 22973) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_is_expired() != 51098) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_metadata() != 28392) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_public_key_hex() != 18161) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_method_sessionsigner_remaining_seconds() != 37589) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_client_new() != 41038) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_client_new_with_crypto_signer() != 55426) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_client_new_with_session_crypto_signer() != 7442) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_client_new_with_session_signer() != 60220) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_client_new_with_signer() != 24222) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_mobsessionmanager_new() != 56485) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_mobsessionmanager_restore() != 38886) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_rustsigner_from_mnemonic() != 21154) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_sessionsigner_from_private_key() != 47125) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mob_checksum_constructor_sessionsigner_new() != 51254) {
+    if (uniffi_mob_checksum_constructor_signer_from_mnemonic() != 23747) {
         return InitializationResult.apiChecksumMismatch
     }
 
-    uniffiCallbackInitCryptoSigner()
-    uniffiCallbackInitHttpTransport()
     return InitializationResult.ok
 }()
 

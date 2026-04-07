@@ -31,6 +31,8 @@ python/mob/mob/mob.py
 python/mob/mob/libmob.dylib
 python/mob/mob/*.so
 python/mob/mob/*.pyd
+python/mob/mob/
+python/mob/__init__.py
 kotlin/lib/libmob.dylib
 kotlin/lib/*.so
 kotlin/lib/*.dll
@@ -62,6 +64,7 @@ kotlin/build/
 
 # Swift
 .build/
+swift/build/
 
 # React Native / Expo module
 react-native/build/

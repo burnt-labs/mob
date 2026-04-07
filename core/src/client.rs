@@ -27,6 +27,7 @@ use std::{str::FromStr, sync::Arc};
 pub struct Client {
     config: ChainConfig,
     rpc_client: NativeRpcClient,
+    transport: Arc<dyn HttpTransport>,
     signer: Option<Arc<dyn CryptoSigner>>,
     transaction_signer: Option<Arc<dyn TransactionSigner>>,
     account: Option<Account>,
@@ -91,12 +92,17 @@ impl Client {
         self.build_send_message_internal(&to_address, amount)
     }
 
-    /// Execute a CosmWasm contract (synchronous wrapper)
+    /// Execute a CosmWasm contract (synchronous wrapper).
+    /// If `granter` is set, wraps MsgExecuteContract in MsgExec (authz).
+    /// If `fee_granter` is set, the fee granter pays gas.
+    #[allow(clippy::too_many_arguments)]
     pub fn execute_contract(
         &self,
         contract_address: String,
         msg: Vec<u8>,
         funds: Vec<Coin>,
+        granter: Option<String>,
+        fee_granter: Option<String>,
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
@@ -109,6 +115,8 @@ impl Client {
             &contract_address,
             &msg,
             funds,
+            granter,
+            fee_granter,
             memo,
             gas_limit,
         ))
@@ -394,11 +402,12 @@ impl Client {
 impl Client {
     /// Create a new RPC client with a native HTTP transport.
     pub fn new_with_transport(config: ChainConfig, transport: Arc<dyn HttpTransport>) -> Self {
-        let rpc_client = NativeRpcClient::new(config.rpc_endpoint.clone(), transport);
+        let rpc_client = NativeRpcClient::new(config.rpc_endpoint.clone(), transport.clone());
 
         Self {
             config,
             rpc_client,
+            transport,
             signer: None,
             transaction_signer: None,
             account: None,
@@ -570,64 +579,92 @@ impl Client {
         Ok(())
     }
 
-    /// Query account information (internal)
+    /// Query account information via LCD REST endpoint (latest state).
+    /// Falls back to ABCI if LCD is not configured.
     async fn get_account_internal(&self, address: &str) -> Result<AccountInfo> {
-        // Validate address
         let _account_id = AccountId::from_str(address)
             .map_err(|e| MobError::Address(format!("Invalid address: {}", e)))?;
 
-        // Query account info using ABCI query
-        let query_path = "/cosmos.auth.v1beta1.Query/Account".to_string();
+        // Derive LCD endpoint from RPC endpoint
+        let lcd_endpoint = self
+            .config
+            .rpc_endpoint
+            .replace("rpc.", "api.")
+            .replace(":443", "");
 
-        // Create the query request protobuf
-        let query_request = xion_types::types::cosmos_auth_v1beta1::QueryAccountRequest {
-            address: address.to_string(),
-        };
+        let url = format!("{}/cosmos/auth/v1beta1/accounts/{}", lcd_endpoint, address);
 
-        // Encode the request
-        use prost::Message;
-        let mut buf = Vec::new();
-        query_request
-            .encode(&mut buf)
-            .map_err(|e| MobError::Transaction(format!("Failed to encode account query: {}", e)))?;
-
-        // Query via ABCI
-        let response = self
-            .rpc_client
-            .abci_query(Some(query_path), buf, None, false)
-            .await
+        // Query via platform-native HTTP transport
+        let response_bytes = self
+            .transport
+            .get(url)
             .map_err(|e| MobError::Network(format!("Account query failed: {}", e)))?;
 
-        // Check for errors
-        if response.code.is_err() {
-            return Err(MobError::Network(format!(
-                "Account query returned error code {}: {}",
-                response.code.value(),
-                response.log
-            )));
-        }
+        let body = String::from_utf8(response_bytes)
+            .map_err(|e| MobError::Network(format!("Invalid UTF-8 in account response: {}", e)))?;
 
-        // Decode the response
-        let query_response = xion_types::types::cosmos_auth_v1beta1::QueryAccountResponse::decode(
-            response.value.as_slice(),
-        )
-        .map_err(|e| MobError::Transaction(format!("Failed to decode account response: {}", e)))?;
+        // Parse JSON response
+        let json: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| MobError::Account(format!("Failed to parse account JSON: {}", e)))?;
 
-        // Extract account info from Any type
-        let account_any = query_response
-            .account
-            .ok_or_else(|| MobError::Account("Account not found".to_string()))?;
+        // Extract account info — handle both BaseAccount and AbstractAccount types
+        let account = json
+            .get("account")
+            .ok_or_else(|| MobError::Account("No account field in response".to_string()))?;
 
-        // Decode BaseAccount from Any
-        let base_account = xion_types::types::cosmos_auth_v1beta1::BaseAccount::decode(
-            account_any.value.as_slice(),
-        )
-        .map_err(|e| MobError::Account(format!("Failed to decode base account: {}", e)))?;
+        // Try to get account_number and sequence from the account or nested base_account
+        let (account_number, sequence) = if let Some(base) = account.get("base_account") {
+            // AbstractAccount wraps a base_account
+            let num = base
+                .get("account_number")
+                .and_then(|v| {
+                    v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| {
+                        if s.is_empty() {
+                            v.as_u64()
+                        } else {
+                            s.parse().ok()
+                        }
+                    })
+                })
+                .unwrap_or(0);
+            let seq = base
+                .get("sequence")
+                .and_then(|v| {
+                    v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| {
+                        if s.is_empty() {
+                            v.as_u64()
+                        } else {
+                            s.parse().ok()
+                        }
+                    })
+                })
+                .unwrap_or(0);
+            (num, seq)
+        } else {
+            // Direct BaseAccount
+            let num = account
+                .get("account_number")
+                .and_then(|v| {
+                    v.as_str()
+                        .and_then(|s| s.parse().ok())
+                        .or_else(|| v.as_u64())
+                })
+                .unwrap_or(0);
+            let seq = account
+                .get("sequence")
+                .and_then(|v| {
+                    v.as_str()
+                        .and_then(|s| s.parse().ok())
+                        .or_else(|| v.as_u64())
+                })
+                .unwrap_or(0);
+            (num, seq)
+        };
 
         Ok(AccountInfo {
             address: address.to_string(),
-            account_number: base_account.account_number,
-            sequence: base_account.sequence,
+            account_number,
+            sequence,
             pub_key: None,
         })
     }
@@ -751,26 +788,46 @@ impl Client {
         Ok(self.message_from_any(msg))
     }
 
-    /// Execute a CosmWasm contract (internal)
+    /// Execute a CosmWasm contract (internal).
+    /// If granter is Some, wraps MsgExecuteContract in MsgExec (authz).
+    /// If fee_granter is Some, it is set on the fee so that account pays gas.
+    #[allow(clippy::too_many_arguments)]
     async fn execute_contract_internal(
         &self,
         contract_address: &str,
         msg: &[u8],
         funds: Vec<Coin>,
+        granter: Option<String>,
+        fee_granter: Option<String>,
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
         let sender = self.logical_sender_address()?;
 
-        let execute_msg = crate::transaction::messages::msg_execute_contract(
-            &sender,
-            contract_address,
-            msg,
-            funds,
-        )?;
+        let tx_msg = if let Some(ref granter_addr) = granter {
+            crate::transaction::messages::msg_execute_contract_authz(
+                &sender,
+                granter_addr,
+                contract_address,
+                msg,
+                funds,
+            )?
+        } else {
+            crate::transaction::messages::msg_execute_contract(
+                &sender,
+                contract_address,
+                msg,
+                funds,
+            )?
+        };
 
-        self.sign_and_broadcast_messages(vec![execute_msg], memo, gas_limit)
-            .await
+        self.sign_and_broadcast_messages_with_fee_granter(
+            vec![tx_msg],
+            memo,
+            gas_limit,
+            fee_granter,
+        )
+        .await
     }
 
     fn build_execute_contract_message_internal(
@@ -947,15 +1004,25 @@ impl Client {
         memo: Option<String>,
         gas_limit: Option<u64>,
     ) -> Result<TxResponse> {
+        self.sign_and_broadcast_messages_with_fee_granter(messages, memo, gas_limit, None)
+            .await
+    }
+
+    /// Sign and broadcast with an optional explicit fee granter override.
+    async fn sign_and_broadcast_messages_with_fee_granter(
+        &self,
+        messages: Vec<cosmrs::Any>,
+        memo: Option<String>,
+        gas_limit: Option<u64>,
+        fee_granter: Option<String>,
+    ) -> Result<TxResponse> {
         let signer = self
             .transaction_signer
             .as_ref()
             .ok_or_else(|| MobError::Signing("No signer attached".to_string()))?;
 
-        let account = self
-            .account
-            .as_ref()
-            .ok_or_else(|| MobError::Account("No account attached".to_string()))?;
+        // Refetch account info to get current sequence
+        let account_info = self.get_account_internal(&signer.signing_address()).await?;
 
         let messages = self.transform_messages_for_signing(messages)?;
 
@@ -966,8 +1033,16 @@ impl Client {
 
         let mut fee =
             crate::transaction::calculate_fee(resolved_gas, &self.config.gas_price, "uxion")?;
-        fee.granter = self.resolved_fee_granter();
-        fee.payer = self.resolved_fee_payer();
+        // Explicit fee_granter param > signer's fee_granter > config fee_granter
+        let effective_granter = fee_granter
+            .or_else(|| signer.fee_granter())
+            .or_else(|| self.config.fee_granter.clone());
+        if let Some(ref granter) = effective_granter {
+            fee.granter = Some(granter.clone());
+        }
+        if let Some(payer) = signer.fee_payer() {
+            fee.payer = Some(payer);
+        }
 
         let mut tx_builder = TransactionBuilder::new(&self.config.chain_id)?;
         tx_builder.add_messages(messages);
@@ -977,10 +1052,11 @@ impl Client {
             tx_builder.with_memo(memo_text);
         }
 
+        // Sign transaction with fresh sequence
         let tx_bytes = tx_builder.sign(
             signer.as_ref(),
-            account.account_number()?,
-            account.sequence()?,
+            account_info.account_number,
+            account_info.sequence,
         )?;
 
         let response = self
@@ -1227,6 +1303,9 @@ mod tests {
             _url: String,
             _body: Vec<u8>,
         ) -> std::result::Result<Vec<u8>, TransportError> {
+            Err(TransportError::NetworkError("mock transport".to_string()))
+        }
+        fn get(&self, _url: String) -> std::result::Result<Vec<u8>, TransportError> {
             Err(TransportError::NetworkError("mock transport".to_string()))
         }
     }

@@ -244,6 +244,7 @@ pub mod messages {
         cosmwasm::{MsgExecuteContract, MsgInstantiateContract, MsgStoreCode},
         AccountId, Coin as CosmosCoin,
     };
+    use prost::Message;
 
     /// Build a MsgSend for token transfer
     pub fn msg_send(from_address: &str, to_address: &str, amount: Vec<Coin>) -> Result<Any> {
@@ -340,6 +341,45 @@ pub mod messages {
         instantiate_msg.to_any().map_err(|e| {
             MobError::Transaction(format!("Failed to create MsgInstantiateContract: {}", e))
         })
+    }
+
+    /// Build a MsgExec that wraps inner messages for authz execution
+    pub fn msg_exec(grantee: &str, inner_msgs: Vec<Any>) -> Result<Any> {
+        let exec = xion_types::types::cosmos_authz_v1beta1::MsgExec {
+            grantee: grantee.to_string(),
+            msgs: inner_msgs
+                .iter()
+                .map(|a| prost_types::Any {
+                    type_url: a.type_url.clone(),
+                    value: a.value.clone(),
+                })
+                .collect(),
+        };
+
+        let mut buf = Vec::new();
+        exec.encode(&mut buf)
+            .map_err(|e| MobError::Transaction(format!("Failed to encode MsgExec: {}", e)))?;
+
+        Ok(Any {
+            type_url: "/cosmos.authz.v1beta1.MsgExec".to_string(),
+            value: buf,
+        })
+    }
+
+    /// Build a MsgExecuteContract wrapped in MsgExec for authz grant execution.
+    /// The sender of the inner MsgExecuteContract is the granter (Meta Account),
+    /// while the grantee (session key) signs the outer MsgExec.
+    pub fn msg_execute_contract_authz(
+        grantee: &str,
+        granter: &str,
+        contract: &str,
+        msg: &[u8],
+        funds: Vec<Coin>,
+    ) -> Result<Any> {
+        // Inner message: MsgExecuteContract with granter as sender
+        let inner = msg_execute_contract(granter, contract, msg, funds)?;
+        // Wrap in MsgExec signed by grantee
+        msg_exec(grantee, vec![inner])
     }
 }
 

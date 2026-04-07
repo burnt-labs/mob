@@ -22,6 +22,13 @@ class NativeHttpTransport(HttpTransport):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
+        return self._perform(req)
+
+    def get(self, url: str) -> bytes:
+        req = urllib.request.Request(url, method="GET")
+        return self._perform(req)
+
+    def _perform(self, req: urllib.request.Request) -> bytes:
         try:
             with urllib.request.urlopen(req) as resp:
                 return resp.read()
