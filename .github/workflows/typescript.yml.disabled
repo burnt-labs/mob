@@ -1,0 +1,73 @@
+name: TypeScript/WASM Client
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - 'typescript/**'
+      - '.github/workflows/typescript.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - 'typescript/**'
+      - '.github/workflows/typescript.yml'
+  workflow_run:
+    workflows: ["Core Library"]
+    types:
+      - completed
+
+jobs:
+  test:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20', '21']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          core/target
+          typescript/wasm/target
+        key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install wasm-bindgen-cli
+      run: cargo install wasm-bindgen-cli
+
+    - name: Install Node dependencies
+      working-directory: typescript
+      run: npm install
+
+    - name: Build WASM module
+      working-directory: typescript
+      run: npm run build:wasm
+
+    - name: Generate WASM bindings
+      working-directory: typescript
+      run: npm run bindgen:wasm
+
+    - name: Build TypeScript
+      working-directory: typescript
+      run: npm run build
+
+    - name: Run tests
+      working-directory: typescript
+      run: npm test

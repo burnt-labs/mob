@@ -4,15 +4,15 @@ Kotlin bindings for the mob library - a multi-platform signing and transaction c
 
 ## Status
 
-✅ **Available** - Kotlin bindings are generated via UniFFI and ready to use with Gradle.
+Kotlin bindings are generated via UniFFI and ready to use with Gradle.
 
 ## Features
 
-- 🔐 **Key Management**: Create signers from mnemonics with BIP39/BIP44 support
-- 📡 **RPC Queries**: Query blockchain state (height, balances, accounts, sync status)
-- 💸 **Transactions**: Send tokens with memo support
-- 🔏 **Message Signing**: Sign arbitrary messages with private keys
-- ⚡ **Synchronous API**: Simple blocking calls, no coroutine complexity
+- **Key Management**: Create signers from mnemonics with BIP39/BIP44 support
+- **RPC Queries**: Query blockchain state (height, balances, accounts, sync status)
+- **Transactions**: Send tokens with memo support
+- **Message Signing**: Sign arbitrary messages with private keys
+- **Synchronous API**: Blocking calls without coroutine complexity
 
 ## Installation
 

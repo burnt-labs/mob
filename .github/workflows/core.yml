@@ -1,0 +1,61 @@
+name: Core Library
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - '.github/workflows/core.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core/**'
+      - '.github/workflows/core.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: ['stable', 'beta']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Rust ${{ matrix.rust-version }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-version }}
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          core/target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust-version }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check code formatting
+      working-directory: core
+      run: cargo fmt --check
+
+    - name: Run clippy
+      working-directory: core
+      run: cargo clippy -- -D warnings
+
+    - name: Build with default features
+      working-directory: core
+      run: cargo build --verbose
+
+    - name: Build without default features (WASM compatibility)
+      working-directory: core
+      run: cargo build --lib --no-default-features --verbose
+
+    - name: Run tests
+      working-directory: core
+      run: cargo test --lib --verbose
+
+    - name: Run doc tests
+      working-directory: core
+      run: cargo test --doc --verbose

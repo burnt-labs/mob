@@ -2,18 +2,29 @@ use crate::{
     error::{MobError, Result},
     types::AccountInfo,
 };
-use cosmrs::{
-    proto::cosmos::auth::v1beta1::BaseAccount,
-    AccountId,
-};
+use cosmrs::{proto::cosmos::auth::v1beta1::BaseAccount, AccountId};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Sentinel value meaning "sequence not yet fetched"
+const SEQ_UNSET: u64 = u64::MAX;
 
 /// Account manager for querying and managing account information
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Account {
     pub address: String,
     pub account_number: Option<u64>,
-    pub sequence: Option<u64>,
+    sequence: AtomicU64,
+}
+
+impl Clone for Account {
+    fn clone(&self) -> Self {
+        Self {
+            address: self.address.clone(),
+            account_number: self.account_number,
+            sequence: AtomicU64::new(self.sequence.load(Ordering::Relaxed)),
+        }
+    }
 }
 
 impl Account {
@@ -22,14 +33,14 @@ impl Account {
         Self {
             address: address.into(),
             account_number: None,
-            sequence: None,
+            sequence: AtomicU64::new(SEQ_UNSET),
         }
     }
 
     /// Update account info
     pub fn update_info(&mut self, info: AccountInfo) {
         self.account_number = Some(info.account_number);
-        self.sequence = Some(info.sequence);
+        self.sequence.store(info.sequence, Ordering::Relaxed);
     }
 
     /// Get account number, returning error if not yet fetched
@@ -40,15 +51,17 @@ impl Account {
 
     /// Get sequence, returning error if not yet fetched
     pub fn sequence(&self) -> Result<u64> {
-        self.sequence
-            .ok_or_else(|| MobError::Account("Sequence not yet fetched".to_string()))
+        let seq = self.sequence.load(Ordering::Relaxed);
+        if seq == SEQ_UNSET {
+            Err(MobError::Account("Sequence not yet fetched".to_string()))
+        } else {
+            Ok(seq)
+        }
     }
 
     /// Increment the sequence number (used after signing a transaction)
-    pub fn increment_sequence(&mut self) {
-        if let Some(seq) = self.sequence {
-            self.sequence = Some(seq + 1);
-        }
+    pub fn increment_sequence(&self) {
+        let _ = self.sequence.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Validate address format
@@ -172,14 +185,14 @@ pub mod abstraction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Account, AccountInfo, abstraction::*};
+    use super::{Account, AccountInfo};
 
     #[test]
     fn test_account_creation() {
         let account = Account::new("xion1234567890abcdef");
         assert_eq!(account.address, "xion1234567890abcdef");
         assert!(account.account_number.is_none());
-        assert!(account.sequence.is_none());
+        assert!(account.sequence().is_err());
     }
 
     #[test]

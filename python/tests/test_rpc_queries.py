@@ -8,33 +8,33 @@ Run with: python -m pytest python/tests/ -v
 """
 
 import pytest
-from mob import Client, Coin, Signer
+from mob import Client, Coin, RustSigner, NativeHttpTransport
 
 
 class TestBasicRPCQueries:
     """Test basic RPC query functionality."""
 
-    def test_create_client(self, chain_config):
+    def test_create_client(self, chain_config, transport):
         """Test creating a client instance."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
         assert client is not None
 
-    def test_get_height(self, chain_config):
+    def test_get_height(self, chain_config, transport):
         """Test getting the current block height."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
         height = client.get_height()
 
         assert height > 0
         assert isinstance(height, int)
-        print(f"✅ Current block height: {height}")
+        print(f"Current block height: {height}")
 
-    def test_is_synced(self, chain_config):
+    def test_is_synced(self, chain_config, transport):
         """Test checking if node is synced."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
         is_synced = client.is_synced()
 
         assert isinstance(is_synced, bool)
-        print(f"✅ Node synced: {is_synced}")
+        print(f"Node synced: {is_synced}")
 
 
 class TestAccountQueries:
@@ -45,26 +45,26 @@ class TestAccountQueries:
         assert test_signer is not None
         address = test_signer.address()
         assert address.startswith("xion")
-        print(f"✅ Signer address: {address}")
+        print(f"Signer address: {address}")
 
-    def test_get_account(self, chain_config, test_address):
+    def test_get_account(self, chain_config, transport, test_address):
         """Test querying account information."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
         account_info = client.get_account(test_address)
 
         assert account_info.address == test_address
         assert account_info.account_number >= 0
         assert account_info.sequence >= 0
-        print(f"✅ Account number: {account_info.account_number}, Sequence: {account_info.sequence}")
+        print(f"Account number: {account_info.account_number}, Sequence: {account_info.sequence}")
 
-    def test_get_balance(self, chain_config, test_address):
+    def test_get_balance(self, chain_config, transport, test_address):
         """Test querying account balance."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
         balance = client.get_balance(test_address, "uxion")
 
         assert balance.denom == "uxion"
         assert int(balance.amount) >= 0
-        print(f"✅ Balance: {balance.amount} {balance.denom}")
+        print(f"Balance: {balance.amount} {balance.denom}")
 
 
 class TestSigningFunctionality:
@@ -77,7 +77,7 @@ class TestSigningFunctionality:
 
         assert signature is not None
         assert len(signature) > 0
-        print(f"✅ Signed message, signature length: {len(signature)} bytes")
+        print(f"Signed message, signature length: {len(signature)} bytes")
 
     def test_get_public_key(self, test_signer):
         """Test getting public key hex."""
@@ -85,29 +85,29 @@ class TestSigningFunctionality:
 
         assert pub_key_hex is not None
         assert len(pub_key_hex) > 0
-        print(f"✅ Public key: {pub_key_hex}")
+        print(f"Public key: {pub_key_hex}")
 
 
 class TestErrorHandling:
     """Test error handling."""
 
-    def test_invalid_address(self, chain_config):
+    def test_invalid_address(self, chain_config, transport):
         """Test querying with invalid address."""
-        client = Client(chain_config)
+        client = Client(chain_config, transport)
 
         with pytest.raises(Exception):
             client.get_account("invalid_address")
-        print("✅ Invalid address properly rejected")
+        print("Invalid address properly rejected")
 
     def test_invalid_mnemonic(self):
         """Test creating signer with invalid mnemonic."""
         with pytest.raises(Exception):
-            Signer.from_mnemonic(
+            RustSigner.from_mnemonic(
                 "invalid mnemonic words",
                 "xion",
                 "m/44'/118'/0'/0/0"
             )
-        print("✅ Invalid mnemonic properly rejected")
+        print("Invalid mnemonic properly rejected")
 
 
 class TestCoinCreation:
@@ -119,7 +119,7 @@ class TestCoinCreation:
 
         assert coin.denom == "uxion"
         assert coin.amount == "1000000"
-        print(f"✅ Created coin: {coin.amount} {coin.denom}")
+        print(f"Created coin: {coin.amount} {coin.denom}")
 
 
 class TestMultipleSigners:
@@ -132,13 +132,13 @@ class TestMultipleSigners:
             "slide dash point basket jaguar fun humor multiply emotion rescue brand pull"
         )
 
-        signer1 = Signer.from_mnemonic(
+        signer1 = RustSigner.from_mnemonic(
             mnemonic,
             "xion",
             "m/44'/118'/0'/0/0"
         )
 
-        signer2 = Signer.from_mnemonic(
+        signer2 = RustSigner.from_mnemonic(
             mnemonic,
             "xion",
             "m/44'/118'/0'/0/1"
@@ -148,69 +148,53 @@ class TestMultipleSigners:
         addr2 = signer2.address()
 
         assert addr1 != addr2
-        print(f"✅ Account 0: {addr1}")
-        print(f"✅ Account 1: {addr2}")
+        print(f"Account 0: {addr1}")
+        print(f"Account 1: {addr2}")
 
 
 class TestIntegrationSendFunds:
     """Integration test for sending real funds on testnet."""
 
-    @pytest.mark.integration  # Mark as integration test
-    def test_send_funds_to_address(self, chain_config, test_signer):
+    @pytest.mark.integration
+    def test_send_funds_to_address(self, chain_config, transport, test_signer):
         """
         Integration test that sends real funds from test mnemonic to a recipient.
-
-        This test requires:
-        - Test account to be funded on XION testnet
-        - Network access to RPC endpoint
 
         Run with: pytest python/tests/ -m integration -v -s
         """
         import time
 
-        print("\n💸 Testing fund transfer on XION testnet...\n")
+        print("\nTesting fund transfer on XION testnet...\n")
 
-        # Receiving address
         recipient = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4"
-
         sender_address = test_signer.address()
-        print(f"1️⃣  Sender address: {sender_address}")
+        print(f"1. Sender address: {sender_address}")
 
-        print("\n2️⃣  Creating RPC client with signer...")
-        client = Client.new_with_signer(chain_config, test_signer)
-        print("   ✅ Client connected with signer attached")
+        print("\n2. Creating RPC client with signer...")
+        client = Client.new_with_signer(chain_config, test_signer, transport)
+        print("   Client connected with signer attached")
 
-        print("\n3️⃣  Querying sender balance...")
+        print("\n3. Querying sender balance...")
         try:
             balance = client.get_balance(sender_address, "uxion")
             balance_amount = int(balance.amount)
-
-            print(f"   💰 Current uxion balance: {balance.amount} uxion")
+            print(f"   Current uxion balance: {balance.amount} uxion")
 
             if balance_amount == 0:
-                print("\n   ⚠️  WARNING: Sender has no uxion balance!")
-                print(f"   Please fund the test account: {sender_address}")
-                print("   Skipping transaction...")
                 pytest.skip("Test account has no funds")
 
-            if balance_amount < 6000:  # Need at least 1000 for amount + 5000 for fee
-                print(f"\n   ⚠️  WARNING: Insufficient balance ({balance_amount} uxion)")
-                print("   Need at least 6000 uxion (1000 to send + 5000 fee)")
+            if balance_amount < 6000:
                 pytest.skip("Insufficient funds for test")
 
         except Exception as e:
-            print(f"\n   ⚠️  Failed to query balance: {e}")
-            print("   Test account may not exist on testnet")
-            pytest.skip("Cannot query account balance")
+            pytest.skip(f"Cannot query account balance: {e}")
 
-        print("\n4️⃣  Preparing transaction...")
-        # Send 1000 uxion (0.001 XION)
+        print("\n4. Preparing transaction...")
         amount = [Coin(denom="uxion", amount="1000")]
 
-        print(f"   📤 Sending 1000 uxion to {recipient}")
-        print("   📝 Memo: Test fund transfer from Python")
+        print(f"   Sending 1000 uxion to {recipient}")
 
-        print("\n5️⃣  Broadcasting transaction...")
+        print("\n5. Broadcasting transaction...")
         try:
             tx_response = client.send(
                 recipient,
@@ -218,38 +202,30 @@ class TestIntegrationSendFunds:
                 "Test fund transfer from Python"
             )
 
-            print("   ✅ Transaction broadcast successful!")
-            print(f"   📝 Transaction hash: {tx_response.txhash}")
-            print(f"   📊 Code: {tx_response.code}")
+            print("   Transaction broadcast successful!")
+            print(f"   Transaction hash: {tx_response.txhash}")
+            print(f"   Code: {tx_response.code}")
 
-            assert tx_response.code == 0, f"Transaction failed with code {tx_response.code}: {tx_response.raw_log}"
-
-            if tx_response.code == 0:
-                print("   ✅ Transaction accepted by mempool")
-            else:
-                print(f"   ⚠️  Transaction failed with code: {tx_response.code}")
-                print(f"   📋 Log: {tx_response.raw_log}")
+            assert tx_response.code == 0, f"Transaction failed: {tx_response.raw_log}"
 
         except Exception as e:
-            print(f"\n   ❌ Transaction failed: {e}")
+            print(f"\n   Transaction failed: {e}")
             raise
 
-        print("\n6️⃣  Waiting for transaction confirmation (10 seconds)...")
+        print("\n6. Waiting for transaction confirmation (10 seconds)...")
         time.sleep(10)
 
-        print("\n7️⃣  Querying transaction result...")
+        print("\n7. Querying transaction result...")
         try:
             tx_result = client.get_tx(tx_response.txhash)
-            print("   ✅ Transaction confirmed!")
-            print(f"   📊 Final code: {tx_result.code}")
-            print(f"   ⛽ Gas used: {tx_result.gas_used}")
-            print(f"   ⛽ Gas wanted: {tx_result.gas_wanted}")
-            print(f"   📏 Block height: {tx_result.height}")
+            print("   Transaction confirmed!")
+            print(f"   Final code: {tx_result.code}")
+            print(f"   Gas used: {tx_result.gas_used}")
+            print(f"   Block height: {tx_result.height}")
 
-            assert tx_result.code == 0, f"Transaction failed with code {tx_result.code}"
+            assert tx_result.code == 0
 
         except Exception as e:
-            print(f"   ⚠️  Could not query transaction: {e}")
-            print("   (Transaction may still be processing)")
+            print(f"   Could not query transaction: {e}")
 
-        print("\n🎉 Fund transfer test completed!\n")
+        print("\nFund transfer test completed.\n")

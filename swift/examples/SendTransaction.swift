@@ -19,21 +19,22 @@ let recipient = "xion1recipient..."
 
 do {
     // Create signer
-    let signer = try Signer.fromMnemonic(
+    let signer = try RustSigner.fromMnemonic(
         mnemonic: mnemonic,
-        prefix: "xion",
+        addressPrefix: "xion",
         derivationPath: "m/44'/118'/0'/0/0"
     )
 
     let senderAddress = signer.address()
-    print("👤 Sender: \(senderAddress)")
+    print("Sender: \(senderAddress)")
 
-    // Create client with signer attached
-    let client = try Client.newWithSigner(config: config, signer: signer)
+    // Create client with signer and native transport
+    let transport = NativeHttpTransport()
+    let client = try Client.newWithSigner(config: config, signer: signer, transport: transport)
 
     // Check balance
     let balance = try client.getBalance(address: senderAddress, denom: "uxion")
-    print("💰 Balance: \(balance.amount) \(balance.denom)")
+    print("Balance: \(balance.amount) \(balance.denom)")
 
     // Send transaction
     let amount = [Coin(denom: "uxion", amount: "1000")]
@@ -43,16 +44,16 @@ do {
         memo: "Test transaction from Swift"
     )
 
-    print("✅ Transaction sent!")
-    print("📝 Hash: \(txResponse.txhash)")
-    print("📊 Code: \(txResponse.code)")
+    print("Transaction sent!")
+    print("Hash: \(txResponse.txhash)")
+    print("Code: \(txResponse.code)")
 
     if txResponse.code == 0 {
-        print("✅ Transaction successful!")
+        print("Transaction successful!")
     } else {
-        print("❌ Transaction failed: \(txResponse.rawLog)")
+        print("Transaction failed: \(txResponse.rawLog)")
     }
 
 } catch {
-    print("❌ Error: \(error)")
+    print("Error: \(error)")
 }

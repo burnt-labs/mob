@@ -247,15 +247,15 @@ do {
     )
 
     if txResponse.code == 0 {
-        print("✅ Transaction successful!")
-        print("📝 Tx hash: \(txResponse.txhash)")
+        print("Transaction successful")
+        print("Tx hash: \(txResponse.txhash)")
     } else {
-        print("❌ Transaction failed!")
+        print("Transaction failed")
         print("Error: \(txResponse.rawLog)")
     }
 
 } catch {
-    print("❌ Error: \(error)")
+    print("Error: \(error)")
 }
 ```
 
@@ -343,7 +343,7 @@ struct ContentView: View {
 
 ## Security Notes
 
-⚠️ **Never use production mnemonics in code or tests!**
+Never use production mnemonics in code or tests.
 
 Use environment variables for sensitive data:
 

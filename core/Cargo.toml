@@ -18,37 +18,62 @@ name = "mob"
 name = "uniffi-bindgen"
 path = "../uniffi-bindgen.rs"
 
+[features]
+default = ["rpc-client", "uniffi-bindings", "rust-signer", "std-transport"]
+# Provides an in-process HTTP transport using ureq (for Rust-only usage, examples, and tests).
+# Not needed when native code provides the transport (iOS/Android).
+std-transport = ["ureq"]
+# RPC client with tokio runtime - for native FFI (Python, Ruby, Kotlin, Swift)
+rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc", "tonic"]
+# UniFFI bindings - for Python, Ruby, Kotlin, Swift
+uniffi-bindings = ["uniffi", "uniffi?/tokio"]
+# Rust signer implementation - pure Rust cryptography with BIP32/BIP39 support
+rust-signer = ["bip32", "k256", "ripemd", "sha2"]
+# WASM-compatible - no tokio, no RPC client, no UniFFI (cryptography only)
+wasm = []
+
 [dependencies]
-# UniFFI
-uniffi = { version = "0.30", features = ["cli", "tokio"] }
+# UniFFI - optional, only for native FFI bindings
+uniffi = { version = "0.30", features = ["cli"], optional = true }
 
-# Cosmos SDK
-cosmos-sdk-proto = { package = "xion-cosmos-sdk-proto", version = "0.26.1", default-features = false, features = ["std", "cosmwasm", "xion", "serde"] }
-cosmrs = { version = "0.22", features = ["cosmwasm", "rpc", "grpc"] }
+# cosmrs - make rpc and grpc optional
+xion-types = { git = "https://github.com/burnt-labs/xion-types", features = ["xion"]}
+cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
 tendermint = "0.37"
-tendermint-rpc = { version = "0.37", features = ["http-client"] }
+# tendermint-rpc - optional for WASM
+tendermint-rpc = { version = "0.37", optional = true }
 
-# Async runtime
-tokio = { version = "1", features = ["full"] }
+# Async runtime - optional for WASM
+tokio = { version = "1", features = ["full"], optional = true }
+
+# gRPC - optional for WASM
+tonic = { version = "0.12", optional = true }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Cryptography
-bip32 = "0.5"
-k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
-ripemd = "0.1"
-sha2 = "0.10"
+# Cryptography - optional, only for rust-signer feature
+bip32 = { version = "0.5", optional = true }
+k256 = { version = "0.13", features = ["ecdsa", "sha256"], optional = true }
+ripemd = { version = "0.1", optional = true }
+sha2 = { version = "0.10", optional = true }
+
+# Random bytes (already a transitive dep via k256/bip32)
+getrandom = "0.2"
+
+# HTTP transport for Rust-only usage (optional, not needed for mobile)
+ureq = { version = "2", optional = true }
 
 # Utilities
 hex = "0.4"
 thiserror = "1"
 async-trait = "0.1"
 prost = "0.13"
+prost-types = "0.13"
 
 [build-dependencies]
-uniffi = { version = "0.30", features = ["build"] }
+uniffi = { version = "0.30", features = ["build"], optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"

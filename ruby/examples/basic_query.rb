@@ -9,14 +9,15 @@
 # - Check node sync status
 
 require_relative '../lib/mob'
+require_relative '../lib/native_http_transport'
 
 def main
   puts "=" * 60
-  puts "🔗 Mob Ruby Client - Basic Query Example"
+  puts "Mob Ruby Client - Basic Query Example"
   puts "=" * 60
 
   # Create chain configuration for XION testnet-2
-  puts "\n1️⃣  Creating chain configuration..."
+  puts "\n1. Creating chain configuration..."
   config = Mob::ChainConfig.new(
     chain_id: "xion-testnet-2",
     rpc_endpoint: "https://rpc.xion-testnet-2.burnt.com:443",
@@ -25,36 +26,36 @@ def main
     coin_type: 118,
     gas_price: "0.025"
   )
-  puts "   ✅ Chain ID: #{config.chain_id}"
-  puts "   ✅ RPC: #{config.rpc_endpoint}"
+  puts "   Chain ID: #{config.chain_id}"
+  puts "   RPC: #{config.rpc_endpoint}"
 
-  # Create RPC client
-  puts "\n2️⃣  Connecting to XION testnet..."
-  client = Mob::Client.new(config)
-  puts "   ✅ Client connected"
+  # Create RPC client with platform-native HTTP transport
+  puts "\n2. Connecting to XION testnet..."
+  transport = Mob::NativeHttpTransport.new
+  client = Mob::Client.new(config, transport)
+  puts "   Client connected"
 
   # Query the latest block height
-  puts "\n3️⃣  Querying blockchain height..."
+  puts "\n3. Querying blockchain height..."
   height = client.get_height
-  puts "   ✅ Current block height: #{height.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
+  puts "   Current block height: #{height.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
 
   # Check sync status
-  puts "\n4️⃣  Checking node sync status..."
+  puts "\n4. Checking node sync status..."
   is_synced = client.is_synced
-  sync_status = is_synced ? "✅ Synced" : "⏳ Syncing"
-  puts "   #{sync_status}"
+  puts "   Synced: #{is_synced}"
 
   # Get chain ID
-  puts "\n5️⃣  Verifying chain ID..."
+  puts "\n5. Verifying chain ID..."
   chain_id = client.get_chain_id
-  puts "   ✅ Chain ID: #{chain_id}"
+  puts "   Chain ID: #{chain_id}"
 
   puts "\n" + "=" * 60
-  puts "✨ Query complete!"
+  puts "Query complete."
   puts "=" * 60
 
 rescue => e
-  puts "\n❌ Error: #{e.message}"
+  puts "\nError: #{e.message}"
   puts e.backtrace.first(5).join("\n")
   exit 1
 end
