@@ -345,6 +345,8 @@ pub mod messages {
 
     /// Build a MsgExec that wraps inner messages for authz execution
     pub fn msg_exec(grantee: &str, inner_msgs: Vec<Any>) -> Result<Any> {
+        use prost::Name;
+
         let exec = xion_types::types::cosmos_authz_v1beta1::MsgExec {
             grantee: grantee.to_string(),
             msgs: inner_msgs
@@ -361,7 +363,7 @@ pub mod messages {
             .map_err(|e| MobError::Transaction(format!("Failed to encode MsgExec: {}", e)))?;
 
         Ok(Any {
-            type_url: "/cosmos.authz.v1beta1.MsgExec".to_string(),
+            type_url: xion_types::types::cosmos_authz_v1beta1::MsgExec::type_url(),
             value: buf,
         })
     }
