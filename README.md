@@ -1,15 +1,16 @@
-# Mob 🦀
+# Mob
 
-A multi-platform signing client library for the XION blockchain, written in Rust using Mozilla's UniFFI framework.
+A multi-platform signing client library for the XION blockchain with session key support for secure, time-limited transaction signing. Written in Rust using Mozilla's UniFFI framework.
 
 ## Features
 
-- 🔐 **Key Management**: Mnemonic-based key derivation and private key management
-- 📝 **Transaction Building**: Intuitive API for building and signing transactions
-- 🌐 **RPC Client**: Full-featured client for interacting with XION nodes
-- 🔄 **Account Abstraction**: Support for XION's account abstraction features
-- 🦀 **Pure Rust**: Core logic written in Rust for safety and performance
-- 🌍 **Multi-platform**: Generate bindings for Kotlin, Swift, Python, Ruby, and more via UniFFI
+- **Session Key Signing**: Time-limited session keys with automatic MsgExec (authz) wrapping for secure delegation
+- **Key Management**: Mnemonic-based key derivation and private key management
+- **Transaction Building**: API for building and signing transactions
+- **RPC Client**: Client for interacting with XION nodes
+- **Account Abstraction**: Support for XION's account abstraction features
+- **Pure Rust**: Core logic written in Rust for safety and performance
+- **Multi-platform**: Generate bindings for Kotlin, Swift, Python, Ruby, and more via UniFFI
 
 ## Architecture
 
@@ -71,10 +72,13 @@ cargo run --example basic_usage
 
 ## Usage
 
-### Rust
+### Rust - Session Key Signing (Recommended)
+
+The primary use case is signing transactions with session keys for secure, time-limited access:
 
 ```rust
-use mob::{ChainConfig, Client, Coin, Signer};
+use mob::{ChainConfig, Client, Coin, SessionMetadata, SessionSigner, Signer};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -88,17 +92,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create RPC client
     let mut client = Client::new(config).await?;
 
-    // Create signer from mnemonic
+    // Load your session key (time-limited, lower security risk)
+    let session_key = Signer::from_mnemonic(
+        "your session key mnemonic",
+        "xion",
+        None
+    )?;
+
+    // Create session metadata (1 hour expiration)
+    let granter_address = "xion1yourmainaccount..."; // Your main account
+    let metadata = SessionMetadata::with_duration(
+        granter_address.to_string(),
+        session_key.address(),
+        3600  // 1 hour in seconds
+    );
+
+    // Create session signer (automatically wraps messages in MsgExec)
+    let session_signer = SessionSigner::new(Arc::new(session_key), metadata)?;
+
+    // All transactions are automatically executed via authz as the granter
+    // Your main account key stays secure and never needs to be exposed
+    println!("Session expires in {} seconds", session_signer.remaining_seconds());
+
+    Ok(())
+}
+```
+
+### Rust - Direct Signing (Basic)
+
+For simple use cases without session keys:
+
+```rust
+use mob::{ChainConfig, Client, Coin, Signer};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ChainConfig::new(
+        "xion-testnet-1",
+        "https://rpc.xion-testnet-1.burnt.com:443",
+        "xion"
+    );
+
+    let mut client = Client::new(config).await?;
+
     let signer = Signer::from_mnemonic(
         "your mnemonic words here",
         "xion",
         None
     )?;
 
-    // Attach signer to client
     client.attach_signer(signer).await?;
 
-    // Send tokens
     let response = client.send(
         "xion1recipient...",
         vec![Coin::new("uxion", "1000000")],
@@ -115,9 +159,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 UniFFI can generate bindings for multiple languages.
 
-#### Python (Recommended - Complete Setup Available)
+#### Python
 
-We provide a complete script that handles everything:
+The following script handles the complete setup:
 
 ```bash
 ./scripts/generate_python_bindings.sh
@@ -137,7 +181,7 @@ pip install .
 python example_usage.py
 ```
 
-📚 **See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for complete Python documentation**
+See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for complete Python documentation.
 
 #### Kotlin (Android)
 
@@ -161,6 +205,7 @@ cargo run --bin uniffi-bindgen generate \
 
 The `examples/` directory contains several usage examples:
 
+- **session_key_usage.rs**: Session key creation and usage with authz (recommended)
 - **basic_usage.rs**: Simple client setup and account queries
 - **send_tokens.rs**: Sending tokens between accounts
 - **execute_contract.rs**: Executing CosmWasm contracts
@@ -188,6 +233,8 @@ mob/
 │   │   ├── account.rs      # Account management
 │   │   ├── client.rs       # RPC client
 │   │   ├── error.rs        # Error types
+│   │   ├── session.rs      # Session metadata types
+│   │   ├── session_signer.rs # Session key signing with authz
 │   │   ├── signer.rs       # Key management and signing
 │   │   ├── transaction.rs  # Transaction building
 │   │   ├── types.rs        # Common types
@@ -201,13 +248,36 @@ mob/
 
 ## Key Components
 
+### SessionSigner (Recommended)
+
+Time-limited session keys that automatically wrap messages in MsgExec for authz delegation:
+
+```rust
+// Create session key
+let session_key = Signer::from_mnemonic("session mnemonic", "xion", None)?;
+
+// Create metadata with 1 hour expiration
+let metadata = SessionMetadata::with_duration(
+    granter_address,
+    session_key.address(),
+    3600
+);
+
+// Create session signer
+let session_signer = SessionSigner::new(Arc::new(session_key), metadata)?;
+
+// All messages are automatically wrapped in MsgExec
+// Check expiration: session_signer.is_expired()
+// Remaining time: session_signer.remaining_seconds()
+```
+
 ### Signer
 
 Manages private keys and signing operations:
 
 ```rust
 let signer = Signer::from_mnemonic(
-    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "your mnemonic words here",
     "xion",
     Some("m/44'/118'/0'/0/0")
 )?;
@@ -264,6 +334,20 @@ let signed_tx = builder.sign(&signer, account_number, sequence)?;
 - Rust 1.70+ (stable)
 - Cargo
 
+### Setup Git Hooks
+
+After cloning the repository, set up the git hooks to ensure code quality:
+
+```bash
+./scripts/setup-git-hooks.sh
+```
+
+This installs a pre-commit hook that will:
+- Check Rust code formatting with `cargo fmt`
+- Run clippy lints with `cargo clippy`
+
+The commit will be blocked if either check fails.
+
 ### Building
 
 ```bash
@@ -315,17 +399,20 @@ cargo check
 
 ## Roadmap
 
-- [x] Core signing functionality
-- [x] RPC client implementation
-- [x] Transaction building and broadcasting
-- [x] Account abstraction support
-- [x] UniFFI bindings interface
-- [ ] gRPC client implementation
-- [ ] Advanced account abstraction features
-- [ ] Gas estimation improvements
-- [ ] Mobile SDK packages (iOS/Android)
-- [ ] Python package distribution
-- [ ] Comprehensive integration tests
+Completed:
+- Core signing functionality
+- RPC client implementation
+- Transaction building and broadcasting
+- Account abstraction support
+- UniFFI bindings interface
+
+In Progress:
+- gRPC client implementation
+- Advanced account abstraction features
+- Gas estimation improvements
+- Mobile SDK packages (iOS/Android)
+- Python package distribution
+- Comprehensive integration tests
 
 ## Contributing
 

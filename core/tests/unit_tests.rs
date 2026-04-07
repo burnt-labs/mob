@@ -1,4 +1,4 @@
-use mob::{ChainConfig, Coin, Fee, Signer};
+use mob::{ChainConfig, Coin, Fee, RustSigner};
 
 #[test]
 fn test_coin_creation() {
@@ -17,7 +17,10 @@ fn test_chain_config_creation() {
     );
 
     assert_eq!(config.chain_id, "xion-testnet-2");
-    assert_eq!(config.rpc_endpoint, "https://rpc.xion-testnet-2.burnt.com:443");
+    assert_eq!(
+        config.rpc_endpoint,
+        "https://rpc.xion-testnet-2.burnt.com:443"
+    );
     assert_eq!(config.address_prefix, "xion");
     assert_eq!(config.coin_type, 118); // Default Cosmos coin type
     assert_eq!(config.gas_price, "0.025"); // Default gas price
@@ -59,8 +62,7 @@ fn test_fee_creation() {
 #[test]
 fn test_fee_with_payer() {
     let coins = vec![Coin::new("uxion", "5000")];
-    let fee = Fee::new(coins, 200_000)
-        .with_payer("xion1payer123".to_string());
+    let fee = Fee::new(coins, 200_000).with_payer("xion1payer123".to_string());
 
     assert_eq!(fee.payer, Some("xion1payer123".to_string()));
     assert!(fee.granter.is_none());
@@ -69,8 +71,7 @@ fn test_fee_with_payer() {
 #[test]
 fn test_fee_with_granter() {
     let coins = vec![Coin::new("uxion", "5000")];
-    let fee = Fee::new(coins, 200_000)
-        .with_granter("xion1granter456".to_string());
+    let fee = Fee::new(coins, 200_000).with_granter("xion1granter456".to_string());
 
     assert!(fee.payer.is_none());
     assert_eq!(fee.granter, Some("xion1granter456".to_string()));
@@ -79,13 +80,9 @@ fn test_fee_with_granter() {
 #[test]
 fn test_signer_from_mnemonic() {
     // Standard test mnemonic (abandon x 11 + about)
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let result = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "xion".to_string(),
-        None,
-    );
+    let result = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None);
 
     assert!(result.is_ok(), "Signer creation should succeed");
 
@@ -93,101 +90,89 @@ fn test_signer_from_mnemonic() {
     let address = signer.address();
 
     // Address should start with the prefix
-    assert!(address.starts_with("xion"), "Address should start with 'xion'");
+    assert!(
+        address.starts_with("xion"),
+        "Address should start with 'xion'"
+    );
 
     // Address should have reasonable length (typically 43 chars for bech32)
     assert!(address.len() > 10, "Address should be reasonable length");
-
-    println!("Generated address: {}", address);
 }
 
 #[test]
 fn test_signer_public_key() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "xion".to_string(),
-        None,
-    ).unwrap();
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     let pub_key_hex = signer.public_key_hex();
 
     // Public key hex should be 66 characters (33 bytes * 2)
-    assert_eq!(pub_key_hex.len(), 66, "Public key hex should be 66 characters");
+    assert_eq!(
+        pub_key_hex.len(),
+        66,
+        "Public key hex should be 66 characters"
+    );
 
     // Should be valid hex
-    assert!(pub_key_hex.chars().all(|c| c.is_ascii_hexdigit()), "Should be valid hex");
-
-    println!("Public key: {}", pub_key_hex);
+    assert!(
+        pub_key_hex.chars().all(|c| c.is_ascii_hexdigit()),
+        "Should be valid hex"
+    );
 }
 
 #[test]
 fn test_signer_address_prefix() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "xion".to_string(),
-        None,
-    ).unwrap();
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     assert_eq!(signer.address_prefix(), "xion");
 }
 
 #[test]
 fn test_signer_different_prefixes() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer_xion = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "xion".to_string(),
-        None,
-    ).unwrap();
+    let signer_xion =
+        RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
-    let signer_cosmos = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "cosmos".to_string(),
-        None,
-    ).unwrap();
+    let signer_cosmos =
+        RustSigner::from_mnemonic(mnemonic.to_string(), "cosmos".to_string(), None).unwrap();
 
     // Same mnemonic should generate different addresses for different prefixes
     assert_ne!(signer_xion.address(), signer_cosmos.address());
 
     // But same public key
     assert_eq!(signer_xion.public_key_hex(), signer_cosmos.public_key_hex());
-
-    println!("XION address: {}", signer_xion.address());
-    println!("Cosmos address: {}", signer_cosmos.address());
 }
 
 #[test]
 fn test_signer_custom_derivation_path() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
-    let signer1 = Signer::from_mnemonic(
+    let signer1 = RustSigner::from_mnemonic(
         mnemonic.to_string(),
         "xion".to_string(),
         Some("m/44'/118'/0'/0/0".to_string()),
-    ).unwrap();
+    )
+    .unwrap();
 
-    let signer2 = Signer::from_mnemonic(
+    let signer2 = RustSigner::from_mnemonic(
         mnemonic.to_string(),
         "xion".to_string(),
         Some("m/44'/118'/0'/0/1".to_string()),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Different derivation paths should generate different addresses
     assert_ne!(signer1.address(), signer2.address());
     assert_ne!(signer1.public_key_hex(), signer2.public_key_hex());
-
-    println!("Account 0 address: {}", signer1.address());
-    println!("Account 1 address: {}", signer2.address());
 }
 
 #[test]
 fn test_signer_invalid_mnemonic() {
-    let result = Signer::from_mnemonic(
+    let result = RustSigner::from_mnemonic(
         "invalid mnemonic phrase".to_string(),
         "xion".to_string(),
         None,
@@ -198,12 +183,8 @@ fn test_signer_invalid_mnemonic() {
 
 #[test]
 fn test_signer_sign_bytes() {
-    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    let signer = Signer::from_mnemonic(
-        mnemonic.to_string(),
-        "xion".to_string(),
-        None,
-    ).unwrap();
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+    let signer = RustSigner::from_mnemonic(mnemonic.to_string(), "xion".to_string(), None).unwrap();
 
     let message = b"Hello, XION!".to_vec();
     let result = signer.sign_bytes(message);
@@ -214,16 +195,11 @@ fn test_signer_sign_bytes() {
 
     // ECDSA signature should be 64 bytes
     assert_eq!(signature.len(), 64, "Signature should be 64 bytes");
-
-    println!("Signature (hex): {}", hex::encode(&signature));
 }
 
 #[test]
 fn test_multiple_coins() {
-    let coins = vec![
-        Coin::new("uxion", "1000000"),
-        Coin::new("uatom", "500000"),
-    ];
+    let coins = [Coin::new("uxion", "1000000"), Coin::new("uatom", "500000")];
 
     assert_eq!(coins.len(), 2);
     assert_eq!(coins[0].denom, "uxion");

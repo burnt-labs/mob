@@ -229,9 +229,9 @@ fun main() {
     println("  Code: ${txResult.code}")
 
     if (txResult.code == 0u) {
-        println("✅ Transaction successful!")
+        println("Transaction successful")
     } else {
-        println("❌ Transaction failed")
+        println("Transaction failed")
     }
 }
 ```
@@ -276,12 +276,12 @@ val client2 = Client.newWithSigner(config, signer2)
 
 ### 1. Secure Mnemonic Storage
 
-❌ **Don't hardcode mnemonics:**
+Do not hardcode mnemonics:
 ```kotlin
 val mnemonic = "quiz cattle knock bacon..." // NEVER DO THIS
 ```
 
-✅ **Use environment variables or secure key storage:**
+Use environment variables or secure key storage:
 ```kotlin
 val mnemonic = System.getenv("XION_MNEMONIC")
     ?: throw Exception("XION_MNEMONIC not set")

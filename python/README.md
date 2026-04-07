@@ -4,11 +4,11 @@ Python bindings for the Mob library - a multi-platform signing client for the XI
 
 ## Quick Development Setup
 
-It's recommended to use a virtual environment. We recommend using [uv](https://github.com/astral-sh/uv) for faster package management:
+Use a virtual environment. For faster package management, use [uv](https://github.com/astral-sh/uv):
 
 ```bash
-# Option 1: Using uv (recommended - faster)
-# Install uv if you haven't: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Option 1: Using uv (faster)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv
 source .venv/bin/activate  # On Unix/macOS
 # or
@@ -34,11 +34,11 @@ See the [Development Commands](#development-commands) section below for all avai
 
 Mob provides a comprehensive Python interface for interacting with the XION blockchain, including:
 
-- 🔐 **Key Management** - Mnemonic-based key derivation and private key management
-- 📝 **Transaction Building** - Intuitive API for building and signing transactions
-- 🌐 **RPC Client** - Full-featured client for interacting with XION nodes
-- 🔄 **Account Abstraction** - Support for XION's account abstraction features
-- 🦀 **Pure Rust Core** - High-performance core logic with Python bindings via UniFFI
+- **Key Management** - Mnemonic-based key derivation and private key management
+- **Transaction Building** - API for building and signing transactions
+- **RPC Client** - Full-featured client for interacting with XION nodes
+- **Account Abstraction** - Support for XION's account abstraction features
+- **Pure Rust Core** - High-performance core logic with Python bindings via UniFFI
 
 ## Installation
 
@@ -232,7 +232,7 @@ Then run any example:
 ```bash
 python examples/basic_query.py
 python examples/account_query.py
-python examples/send_transaction.py  # ⚠️ Requires funded test account
+python examples/send_transaction.py  # Requires funded test account
 ```
 
 ## Running Tests

@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Generated bindings and libraries
+lib/libmob.dylib
+lib/*.so
+lib/*.dll
+lib/uniffi/mob/mob.kt
+
+# Kotlin
+*.class
+*.kotlin_module
+.kotlin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# OS
+.DS_Store

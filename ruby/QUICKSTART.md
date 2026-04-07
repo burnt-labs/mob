@@ -170,10 +170,10 @@ amount = [Mob::Coin.new(denom: "uxion", amount: "1000")]
 tx_response = client.send(recipient, amount, "Test transaction")
 
 if tx_response.code == 0
-  puts "✅ Transaction successful!"
-  puts "📝 Tx hash: #{tx_response.txhash}"
+  puts "Transaction successful"
+  puts "Tx hash: #{tx_response.txhash}"
 else
-  puts "❌ Transaction failed!"
+  puts "Transaction failed"
   puts "Error: #{tx_response.raw_log}"
 end
 ```
@@ -186,7 +186,7 @@ end
 
 ## Security Notes
 
-⚠️ **Never use production mnemonics in code or tests!**
+Never use production mnemonics in code or tests.
 
 Use environment variables for sensitive data:
 

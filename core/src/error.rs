@@ -1,8 +1,9 @@
 use thiserror::Error;
 
 /// Main error type for the mob library
-#[derive(Debug, Error, uniffi::Error)]
-#[uniffi(flat_error)]
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Error))]
+#[cfg_attr(feature = "uniffi-bindings", uniffi(flat_error))]
 pub enum MobError {
     /// RPC-related errors
     #[error("RPC error: {0}")]
@@ -52,6 +53,10 @@ pub enum MobError {
     #[error("Timeout: {0}")]
     Timeout(String),
 
+    /// Session expired errors
+    #[error("Session expired: {0}")]
+    SessionExpired(String),
+
     /// Generic error
     #[error("Error: {0}")]
     Generic(String),
@@ -70,6 +75,7 @@ impl From<cosmrs::ErrorReport> for MobError {
     }
 }
 
+#[cfg(feature = "rpc-client")]
 impl From<tendermint_rpc::Error> for MobError {
     fn from(err: tendermint_rpc::Error) -> Self {
         MobError::Rpc(err.to_string())
@@ -82,6 +88,7 @@ impl From<serde_json::Error> for MobError {
     }
 }
 
+#[cfg(feature = "rust-signer")]
 impl From<bip32::Error> for MobError {
     fn from(err: bip32::Error) -> Self {
         MobError::KeyDerivation(err.to_string())
@@ -96,6 +103,12 @@ impl From<hex::FromHexError> for MobError {
 
 impl From<std::io::Error> for MobError {
     fn from(err: std::io::Error) -> Self {
+        MobError::Network(err.to_string())
+    }
+}
+
+impl From<crate::http_transport::TransportError> for MobError {
+    fn from(err: crate::http_transport::TransportError) -> Self {
         MobError::Network(err.to_string())
     }
 }

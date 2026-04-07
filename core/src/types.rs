@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 /// Represents a coin amount with denomination
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct Coin {
     pub denom: String,
     pub amount: String,
@@ -35,7 +36,8 @@ impl From<cosmrs::Coin> for Coin {
 }
 
 /// Account information
-#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct AccountInfo {
     pub address: String,
     pub account_number: u64,
@@ -44,7 +46,8 @@ pub struct AccountInfo {
 }
 
 /// Transaction fee information
-#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct Fee {
     pub amount: Vec<Coin>,
     pub gas_limit: u64,
@@ -74,7 +77,8 @@ impl Fee {
 }
 
 /// Transaction response
-#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct TxResponse {
     pub txhash: String,
     pub code: u32,
@@ -85,7 +89,8 @@ pub struct TxResponse {
 }
 
 /// Broadcast mode for transactions
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Enum))]
 pub enum BroadcastMode {
     /// Synchronous - returns after CheckTx
     Sync,
@@ -96,7 +101,8 @@ pub enum BroadcastMode {
 }
 
 /// Chain configuration
-#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct ChainConfig {
     pub chain_id: String,
     pub rpc_endpoint: String,
@@ -104,6 +110,9 @@ pub struct ChainConfig {
     pub address_prefix: String,
     pub coin_type: u32,
     pub gas_price: String,
+    /// Optional fee granter address (e.g. treasury contract).
+    /// When set, all transactions include this address as the fee granter.
+    pub fee_granter: Option<String>,
 }
 
 impl ChainConfig {
@@ -119,6 +128,7 @@ impl ChainConfig {
             address_prefix: address_prefix.into(),
             coin_type: 118, // Default Cosmos coin type
             gas_price: "0.025".to_string(),
+            fee_granter: None,
         }
     }
 
@@ -140,9 +150,18 @@ impl ChainConfig {
 
 /// Message type for transactions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
 pub struct Message {
     pub type_url: String,
     pub value: Vec<u8>,
+}
+
+/// Signer address and public key, returned from session manager operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Record))]
+pub struct SignerInfo {
+    pub address: String,
+    pub public_key_hex: String,
 }
 
 /// Signature information

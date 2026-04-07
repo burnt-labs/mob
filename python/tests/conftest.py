@@ -5,7 +5,7 @@ This module provides reusable fixtures for testing the mob Python bindings.
 """
 
 import pytest
-from mob import ChainConfig, Signer
+from mob import ChainConfig, RustSigner, NativeHttpTransport
 
 
 # Test configuration constants
@@ -46,11 +46,22 @@ def test_signer():
     Returns:
         Signer: A signer instance derived from TEST_MNEMONIC
     """
-    return Signer.from_mnemonic(
+    return RustSigner.from_mnemonic(
         TEST_MNEMONIC,
         ADDRESS_PREFIX,
         "m/44'/118'/0'/0/0"
     )
+
+
+@pytest.fixture
+def transport():
+    """
+    Create a NativeHttpTransport instance.
+
+    Returns:
+        NativeHttpTransport: Platform-native HTTP transport
+    """
+    return NativeHttpTransport()
 
 
 @pytest.fixture

@@ -16,36 +16,40 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use mob::{Client, Signer, ChainConfig, Coin};
+//! use mob::{Client, RustSigner, ChainConfig, Coin, HttpTransport, UreqTransport};
+//! use std::sync::Arc;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create chain configuration
 //!     let config = ChainConfig::new(
-//!         "xion-testnet-1",
-//!         "https://rpc.xion-testnet-1.burnt.com:443",
-//!         "xion"
+//!         "xion-testnet-1".to_string(),
+//!         "https://rpc.xion-testnet-1.burnt.com:443".to_string(),
+//!         "xion".to_string()
 //!     );
 //!
+//!     // Create transport (use UreqTransport for Rust, or native transport on mobile)
+//!     let transport: Arc<dyn HttpTransport> = Arc::new(UreqTransport::new());
+//!
 //!     // Create RPC client
-//!     let mut client = Client::new(config).await?;
+//!     let mut client = Client::new_with_transport(config, transport);
 //!
 //!     // Create signer from mnemonic
-//!     let signer = Signer::from_mnemonic(
-//!         "your mnemonic words here",
-//!         "xion",
+//!     let signer = RustSigner::from_mnemonic(
+//!         "your mnemonic words here".to_string(),
+//!         "xion".to_string(),
 //!         None
 //!     )?;
 //!
 //!     // Attach signer to client
-//!     client.attach_signer(signer).await?;
+//!     client.attach_crypto_signer(Arc::new(signer)).await?;
 //!
 //!     // Send tokens
 //!     let response = client.send(
-//!         "xion1recipient...",
-//!         vec![Coin::new("uxion", "1000000")],
+//!         "xion1recipient...".to_string(),
+//!         vec![Coin::new("uxion".to_string(), "1000000".to_string())],
 //!         Some("Test transfer".to_string())
-//!     ).await?;
+//!     )?;
 //!
 //!     println!("Transaction hash: {}", response.txhash);
 //!
@@ -55,22 +59,46 @@
 
 pub mod account;
 pub mod client;
+pub mod crypto_signer;
 pub mod error;
-pub mod signer;
+pub mod http_transport;
+#[cfg(feature = "rpc-client")]
+pub mod native_rpc_client;
+#[cfg(feature = "rust-signer")]
+pub mod rust_signer;
+pub mod session;
+#[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
+pub mod session_manager;
+pub mod session_signer;
+#[cfg(feature = "std-transport")]
+pub mod std_transport;
 pub mod transaction;
 pub mod types;
 
 // Re-export main types for convenience
 pub use account::{abstraction, Account};
+#[cfg(feature = "rpc-client")]
 pub use client::Client;
+pub use cosmrs::Any;
+pub use crypto_signer::{CryptoSigner, SignerError};
 pub use error::{MobError, Result};
-pub use signer::Signer;
+pub use http_transport::{HttpTransport, TransportError};
+#[cfg(feature = "rust-signer")]
+pub use rust_signer::RustSigner;
+pub use session::SessionMetadata;
+#[cfg(all(feature = "rpc-client", feature = "rust-signer"))]
+pub use session_manager::MobSessionManager;
+pub use session_signer::SessionSigner;
+#[cfg(feature = "std-transport")]
+pub use std_transport::UreqTransport;
 pub use transaction::{messages, TransactionBuilder};
 pub use types::{
-    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, TxResponse,
+    AccountInfo, BroadcastMode, ChainConfig, Coin, Fee, Message, SignOptions, SignerInfo,
+    TxResponse,
 };
 
-// UniFFI setup
+// UniFFI setup - only when uniffi-bindings feature is enabled
+#[cfg(feature = "uniffi-bindings")]
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]
