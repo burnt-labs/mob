@@ -63,8 +63,7 @@ const MobContext = createContext<MobContextState | null>(null);
 // --- Network detection ---
 // Dashboard URLs per chain ID, sourced from xion.js/packages/constants
 const DASHBOARD_URLS: Record<string, string> = {
-  'xion-mainnet-1': 'https://settings.mainnet.burnt.com',
-  'xion-testnet-1': 'https://settings.testnet.burnt.com',
+  'xion-mainnet-1': 'https://auth.burnt.com',
   'xion-testnet-2': 'https://auth.testnet.burnt.com',
 };
 
