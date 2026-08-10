@@ -1,0 +1,45 @@
+name: React Native Client
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'react-native/**'
+      - '.github/workflows/react-native.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'react-native/**'
+      - '.github/workflows/react-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: react-native/package-lock.json
+
+      - name: Install dependencies
+        working-directory: react-native
+        run: npm ci --legacy-peer-deps
+
+      - name: Audit dependencies
+        working-directory: react-native
+        run: npm audit
+
+      - name: Test dependency security patches
+        working-directory: react-native
+        run: npm run check:dependency-security
+
+      - name: Build
+        working-directory: react-native
+        run: npm run build

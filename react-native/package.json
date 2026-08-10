@@ -6,6 +6,7 @@
   "types": "build/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "check:dependency-security": "node scripts/check-image-size-security.js",
     "clean": "rm -rf build",
     "prepublishOnly": "npm run clean && npm run build"
   },
@@ -19,10 +20,18 @@
     "react-native": ">=0.73.0"
   },
   "devDependencies": {
-    "@types/react": "^18.0.0",
-    "react": "^18.0.0",
-    "react-native": "^0.73.0",
-    "typescript": "^5.3.0"
+    "@react-native-async-storage/async-storage": "^3.1.1",
+    "@types/react": "^19.2.18",
+    "expo-linking": "^57.0.5",
+    "expo-modules-core": "^57.0.10",
+    "expo-web-browser": "^57.0.2",
+    "image-size": "file:third_party/image-size",
+    "react": "^19.2.8",
+    "react-native": "^0.86.2",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "image-size": "$image-size"
   },
   "repository": {
     "type": "git",
