@@ -249,22 +249,22 @@ function getImageSize2(type) {
   const size = ICON_TYPE_SIZE[type];
   return { width: size, height: size, type };
 }
-function validateEntryLength(inputLength, fileLength, imageOffset, entryLength) {
-  const availableLength = Math.min(inputLength, fileLength);
+function validateEntryLength(inputLength, fileLength, imageOffset, entryLength, actualFileLength) {
+  const availableLength = Math.min(actualFileLength ?? inputLength, fileLength);
   if (!Number.isInteger(entryLength) || entryLength < SIZE_ENTRY_HEADER || imageOffset + entryLength > availableLength) {
     throw new TypeError("invalid ICNS image entry length");
   }
 }
 var ICNS = {
   validate: (input) => toUTF8String(input, 0, 4) === "icns",
-  calculate(input) {
+  calculate(input, actualFileLength) {
     const inputLength = input.length;
     const fileLength = readUInt32BE(input, FILE_LENGTH_OFFSET);
     let imageOffset = SIZE_HEADER2;
     const images = [];
     while (imageOffset < fileLength && imageOffset < inputLength) {
       const imageHeader = readImageHeader(input, imageOffset);
-      validateEntryLength(inputLength, fileLength, imageOffset, imageHeader[1]);
+      validateEntryLength(inputLength, fileLength, imageOffset, imageHeader[1], actualFileLength);
       const imageSize2 = getImageSize2(imageHeader[0]);
       images.push(imageSize2);
       imageOffset += imageHeader[1];
@@ -979,13 +979,13 @@ function detector(input) {
 var globalOptions = {
   disabledTypes: []
 };
-function imageSize(input) {
+function imageSize(input, actualFileLength) {
   const type = detector(input);
   if (typeof type !== "undefined") {
     if (globalOptions.disabledTypes.indexOf(type) > -1) {
       throw new TypeError(`disabled file type: ${type}`);
     }
-    const size = typeHandlers.get(type).calculate(input);
+    const size = typeHandlers.get(type).calculate(input, actualFileLength);
     if (size !== void 0) {
       size.type = size.type ?? type;
       if (size.images && size.images.length > 1) {
@@ -1025,7 +1025,7 @@ var processQueue = async () => {
       const inputSize = Math.min(size, MaxInputSize);
       const input = new Uint8Array(inputSize);
       await handle.read(input, 0, inputSize, 0);
-      resolve2(imageSize(input));
+      resolve2(imageSize(input, size));
     } catch (err) {
       reject(err);
     } finally {

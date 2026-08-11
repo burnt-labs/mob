@@ -1,4 +1,7 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 const { imageSize } = require('../third_party/image-size');
 const { findBox } = require('../third_party/image-size/dist/types/utils.cjs');
 
@@ -26,11 +29,39 @@ assert.throws(
   'JXL and HEIF zero-length boxes must be rejected',
 );
 
-const { imageSizeFromFile } = require('image-size/fromFile');
-assert.equal(
-  typeof imageSizeFromFile,
-  'function',
-  'the Metro image-size/fromFile API must remain available',
-);
+async function checkFileApi() {
+  const { imageSizeFromFile } = require('image-size/fromFile');
+  assert.equal(
+    typeof imageSizeFromFile,
+    'function',
+    'the Metro image-size/fromFile API must remain available',
+  );
 
-console.log('image-size denial-of-service regressions passed');
+  const entryLength = 600 * 1024;
+  const fileLength = 8 + entryLength;
+  const largeIcns = Buffer.alloc(fileLength);
+  largeIcns.write('icns', 0, 'ascii');
+  largeIcns.writeUInt32BE(fileLength, 4);
+  largeIcns.write('ic07', 8, 'ascii');
+  largeIcns.writeUInt32BE(entryLength, 12);
+
+  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'mob-image-size-'));
+  const filePath = path.join(tempDirectory, 'large.icns');
+  try {
+    await fs.writeFile(filePath, largeIcns);
+    assert.deepEqual(
+      await imageSizeFromFile(filePath),
+      { height: 128, type: 'icns', width: 128 },
+      'the file API must accept valid ICNS entries beyond its read prefix',
+    );
+  } finally {
+    await fs.rm(tempDirectory, { force: true, recursive: true });
+  }
+}
+
+checkFileApi()
+  .then(() => console.log('image-size denial-of-service regressions passed'))
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
