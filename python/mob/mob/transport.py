@@ -11,6 +11,9 @@ import urllib.error
 
 from .mob import HttpTransport, TransportError
 
+# Cloudflare-fronted RPC hosts reject urllib's default "Python-urllib" agent (error 1010).
+USER_AGENT = "mob-python"
+
 
 class NativeHttpTransport(HttpTransport):
     """urllib-based implementation of the Rust HttpTransport trait."""
@@ -19,13 +22,13 @@ class NativeHttpTransport(HttpTransport):
         req = urllib.request.Request(
             url,
             data=body,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
             method="POST",
         )
         return self._perform(req)
 
     def get(self, url: str) -> bytes:
-        req = urllib.request.Request(url, method="GET")
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="GET")
         return self._perform(req)
 
     def _perform(self, req: urllib.request.Request) -> bytes:

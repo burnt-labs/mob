@@ -42,7 +42,8 @@ class MobTest {
             grpcEndpoint = null,
             addressPrefix = ADDRESS_PREFIX,
             coinType = 118u,
-            gasPrice = "0.025"
+            gasPrice = "0.025",
+            feeGranter = null
         )
 
         signer = RustSigner.fromMnemonic(
@@ -129,7 +130,7 @@ class MobTest {
     @Test
     fun testSignMessage() {
         val message = "Hello, XION!".toByteArray()
-        val signature = signer.signBytes(message.map { it.toUByte() })
+        val signature = signer.signBytes(message)
 
         assertNotNull(signature)
         assertTrue(signature.isNotEmpty())

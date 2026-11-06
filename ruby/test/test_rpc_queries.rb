@@ -25,7 +25,8 @@ class TestRpcQueries < Minitest::Test
       grpc_endpoint: nil,
       address_prefix: ADDRESS_PREFIX,
       coin_type: 118,
-      gas_price: "0.025"
+      gas_price: "0.025",
+      fee_granter: nil
     )
 
     @transport = Mob::NativeHttpTransport.new
@@ -181,7 +182,8 @@ class TestIntegrationSendFunds < Minitest::Test
       grpc_endpoint: nil,
       address_prefix: ADDRESS_PREFIX,
       coin_type: 118,
-      gas_price: "0.025"
+      gas_price: "0.025",
+      fee_granter: nil
     )
 
     @transport = Mob::NativeHttpTransport.new

@@ -54,6 +54,16 @@ lipo -create \
   target/x86_64-apple-ios/release/libmob.dylib \
   -output "$XCFW_BUILD/simulator-universal/libmob.dylib"
 
+# Static libraries for the React Native pod, which links libmob.a directly
+STATIC_DIR="$RN_IOS_DIR/Frameworks/static"
+rm -rf "$STATIC_DIR"
+mkdir -p "$STATIC_DIR/device" "$STATIC_DIR/simulator"
+cp target/aarch64-apple-ios/release/libmob.a "$STATIC_DIR/device/"
+lipo -create \
+  target/aarch64-apple-ios-sim/release/libmob.a \
+  target/x86_64-apple-ios/release/libmob.a \
+  -output "$STATIC_DIR/simulator/libmob.a"
+
 # Copy headers to separate directories (so libmob.a isn't treated as a header)
 cp "$RN_IOS_DIR/generated/mobFFI.h" "$XCFW_BUILD/device/headers/"
 cp "$RN_IOS_DIR/generated/mobFFI.modulemap" "$XCFW_BUILD/device/headers/module.modulemap"
@@ -73,6 +83,9 @@ rm -rf "$XCFW_BUILD"
 
 # Copy module.modulemap for Swift include path discovery
 cp "$RN_IOS_DIR/generated/mobFFI.modulemap" "$RN_IOS_DIR/generated/module.modulemap"
+
+# CocoaPods only compiles sources under the pod root, so ship the shared transport next to the bindings
+cp "$ROOT_DIR/swift/Sources/Mob/NativeHttpTransport.swift" "$RN_IOS_DIR/generated/NativeHttpTransport.swift"
 
 echo "iOS build complete."
 echo "  XCFramework: $RN_IOS_DIR/Frameworks/libmob.xcframework"

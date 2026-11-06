@@ -21,7 +21,7 @@ public final class NativeHttpTransport: HttpTransport, @unchecked Sendable {
         return try performRequest(request)
     }
 
-    func get(url: String) throws -> Data {
+    public func get(url: String) throws -> Data {
         guard let requestUrl = URL(string: url) else {
             throw TransportError.RequestFailed(message: "Invalid URL: \(url)")
         }

@@ -278,6 +278,13 @@ typedef void (*UniffiCallbackInterfaceHttpTransportMethod0)(uint64_t, RustBuffer
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_HTTP_TRANSPORT_METHOD1
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_HTTP_TRANSPORT_METHOD1
+typedef void (*UniffiCallbackInterfaceHttpTransportMethod1)(uint64_t, RustBuffer, RustBuffer* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_CRYPTO_SIGNER
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_CRYPTO_SIGNER
 typedef struct UniffiVTableCallbackInterfaceCryptoSigner {
@@ -296,6 +303,7 @@ typedef struct UniffiVTableCallbackInterfaceHttpTransport {
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
     UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceHttpTransportMethod0 _Nonnull post;
+    UniffiCallbackInterfaceHttpTransportMethod1 _Nonnull get;
 } UniffiVTableCallbackInterfaceHttpTransport;
 
 #endif
@@ -339,29 +347,9 @@ uint64_t uniffi_mob_fn_constructor_client_new_with_signer(RustBuffer config, uin
 void uniffi_mob_fn_method_client_attach_signer(uint64_t ptr, uint64_t _signer, RustCallStatus *_Nonnull out_status
 );
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
-RustBuffer uniffi_mob_fn_method_client_build_execute_contract_message(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
-RustBuffer uniffi_mob_fn_method_client_build_instantiate_contract_message(uint64_t ptr, RustBuffer admin, uint64_t code_id, RustBuffer label, RustBuffer msg, RustBuffer funds, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_SEND_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_SEND_MESSAGE
-RustBuffer uniffi_mob_fn_method_client_build_send_message(uint64_t ptr, RustBuffer to_address, RustBuffer amount, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
-RustBuffer uniffi_mob_fn_method_client_build_store_code_message(uint64_t ptr, RustBuffer wasm_byte_code, RustCallStatus *_Nonnull out_status
-);
-#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_EXECUTE_CONTRACT
-RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer memo, RustBuffer gas_limit, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_mob_fn_method_client_execute_contract(uint64_t ptr, RustBuffer contract_address, RustBuffer msg, RustBuffer funds, RustBuffer granter, RustBuffer fee_granter, RustBuffer memo, RustBuffer gas_limit, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_CLIENT_GET_ACCOUNT
@@ -484,6 +472,46 @@ void uniffi_mob_fn_init_callback_vtable_httptransport(const UniffiVTableCallback
 RustBuffer uniffi_mob_fn_method_httptransport_post(uint64_t ptr, RustBuffer url, RustBuffer body, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_HTTPTRANSPORT_GET
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_HTTPTRANSPORT_GET
+RustBuffer uniffi_mob_fn_method_httptransport_get(uint64_t ptr, RustBuffer url, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_RUSTSIGNER
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_RUSTSIGNER
+uint64_t uniffi_mob_fn_clone_rustsigner(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_FREE_RUSTSIGNER
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_FREE_RUSTSIGNER
+void uniffi_mob_fn_free_rustsigner(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
+uint64_t uniffi_mob_fn_constructor_rustsigner_from_mnemonic(RustBuffer mnemonic, RustBuffer address_prefix, RustBuffer derivation_path, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS
+RustBuffer uniffi_mob_fn_method_rustsigner_address(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS_PREFIX
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS_PREFIX
+RustBuffer uniffi_mob_fn_method_rustsigner_address_prefix(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
+RustBuffer uniffi_mob_fn_method_rustsigner_public_key_hex(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_SIGN_BYTES
+#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_SIGN_BYTES
+RustBuffer uniffi_mob_fn_method_rustsigner_sign_bytes(uint64_t ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_MOBSESSIONMANAGER
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_MOBSESSIONMANAGER
 uint64_t uniffi_mob_fn_clone_mobsessionmanager(uint64_t handle, RustCallStatus *_Nonnull out_status
@@ -557,41 +585,6 @@ RustBuffer uniffi_mob_fn_method_mobsessionmanager_public_key_hex(uint64_t ptr, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_MOBSESSIONMANAGER_SIGN_BYTES
 #define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_MOBSESSIONMANAGER_SIGN_BYTES
 RustBuffer uniffi_mob_fn_method_mobsessionmanager_sign_bytes(uint64_t ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_RUSTSIGNER
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_RUSTSIGNER
-uint64_t uniffi_mob_fn_clone_rustsigner(uint64_t handle, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_FREE_RUSTSIGNER
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_FREE_RUSTSIGNER
-void uniffi_mob_fn_free_rustsigner(uint64_t handle, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
-uint64_t uniffi_mob_fn_constructor_rustsigner_from_mnemonic(RustBuffer mnemonic, RustBuffer address_prefix, RustBuffer derivation_path, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS
-RustBuffer uniffi_mob_fn_method_rustsigner_address(uint64_t ptr, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS_PREFIX
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_ADDRESS_PREFIX
-RustBuffer uniffi_mob_fn_method_rustsigner_address_prefix(uint64_t ptr, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
-RustBuffer uniffi_mob_fn_method_rustsigner_public_key_hex(uint64_t ptr, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_SIGN_BYTES
-#define UNIFFI_FFIDEF_UNIFFI_MOB_FN_METHOD_RUSTSIGNER_SIGN_BYTES
-RustBuffer uniffi_mob_fn_method_rustsigner_sign_bytes(uint64_t ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_FN_CLONE_SESSIONSIGNER
@@ -910,30 +903,6 @@ uint16_t uniffi_mob_checksum_method_client_attach_signer(void
     
 );
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_EXECUTE_CONTRACT_MESSAGE
-uint16_t uniffi_mob_checksum_method_client_build_execute_contract_message(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_INSTANTIATE_CONTRACT_MESSAGE
-uint16_t uniffi_mob_checksum_method_client_build_instantiate_contract_message(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_SEND_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_SEND_MESSAGE
-uint16_t uniffi_mob_checksum_method_client_build_send_message(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_BUILD_STORE_CODE_MESSAGE
-uint16_t uniffi_mob_checksum_method_client_build_store_code_message(void
-    
-);
-#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_CLIENT_EXECUTE_CONTRACT
 uint16_t uniffi_mob_checksum_method_client_execute_contract(void
@@ -1048,6 +1017,36 @@ uint16_t uniffi_mob_checksum_method_httptransport_post(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_HTTPTRANSPORT_GET
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_HTTPTRANSPORT_GET
+uint16_t uniffi_mob_checksum_method_httptransport_get(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS
+uint16_t uniffi_mob_checksum_method_rustsigner_address(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS_PREFIX
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS_PREFIX
+uint16_t uniffi_mob_checksum_method_rustsigner_address_prefix(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
+uint16_t uniffi_mob_checksum_method_rustsigner_public_key_hex(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_SIGN_BYTES
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_SIGN_BYTES
+uint16_t uniffi_mob_checksum_method_rustsigner_sign_bytes(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_MOBSESSIONMANAGER_ACTIVATE
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_MOBSESSIONMANAGER_ACTIVATE
 uint16_t uniffi_mob_checksum_method_mobsessionmanager_activate(void
@@ -1111,30 +1110,6 @@ uint16_t uniffi_mob_checksum_method_mobsessionmanager_public_key_hex(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_MOBSESSIONMANAGER_SIGN_BYTES
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_MOBSESSIONMANAGER_SIGN_BYTES
 uint16_t uniffi_mob_checksum_method_mobsessionmanager_sign_bytes(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS
-uint16_t uniffi_mob_checksum_method_rustsigner_address(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS_PREFIX
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_ADDRESS_PREFIX
-uint16_t uniffi_mob_checksum_method_rustsigner_address_prefix(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_PUBLIC_KEY_HEX
-uint16_t uniffi_mob_checksum_method_rustsigner_public_key_hex(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_SIGN_BYTES
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_METHOD_RUSTSIGNER_SIGN_BYTES
-uint16_t uniffi_mob_checksum_method_rustsigner_sign_bytes(void
     
 );
 #endif
@@ -1204,6 +1179,12 @@ uint16_t uniffi_mob_checksum_constructor_client_new_with_signer(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
+#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
+uint16_t uniffi_mob_checksum_constructor_rustsigner_from_mnemonic(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_MOBSESSIONMANAGER_NEW
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_MOBSESSIONMANAGER_NEW
 uint16_t uniffi_mob_checksum_constructor_mobsessionmanager_new(void
@@ -1213,12 +1194,6 @@ uint16_t uniffi_mob_checksum_constructor_mobsessionmanager_new(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_MOBSESSIONMANAGER_RESTORE
 #define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_MOBSESSIONMANAGER_RESTORE
 uint16_t uniffi_mob_checksum_constructor_mobsessionmanager_restore(void
-    
-);
-#endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
-#define UNIFFI_FFIDEF_UNIFFI_MOB_CHECKSUM_CONSTRUCTOR_RUSTSIGNER_FROM_MNEMONIC
-uint16_t uniffi_mob_checksum_constructor_rustsigner_from_mnemonic(void
     
 );
 #endif

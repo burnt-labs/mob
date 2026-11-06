@@ -138,8 +138,8 @@ public class MobModule: Module {
       let info = try client.getAccount(address: address)
       return [
         "address": info.address,
-        "accountNumber": info.accountNumber,
-        "sequence": info.sequence,
+        "accountNumber": String(info.accountNumber),
+        "sequence": Double(info.sequence),
         "pubKey": info.pubKey as Any,
       ]
     }
@@ -194,6 +194,8 @@ public class MobModule: Module {
         contractAddress: contractAddress,
         msg: Data(msg),
         funds: fundCoins,
+        granter: nil,
+        feeGranter: nil,
         memo: memo,
         gasLimit: gasLimit
       )
@@ -227,6 +229,8 @@ public class MobModule: Module {
       let metadata = SessionMetadata(
         granter: granter,
         grantee: grantee,
+        feeGranter: nil,
+        feePayer: nil,
         createdAt: createdAt,
         expiresAt: expiresAt,
         description: description
@@ -292,6 +296,8 @@ public class MobModule: Module {
         contractAddress: contractAddress,
         msg: Data(msg),
         funds: fundCoins,
+        granter: nil,
+        feeGranter: nil,
         memo: memo,
         gasLimit: gasLimit
       )

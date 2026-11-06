@@ -16,7 +16,7 @@ end
 # NOTE: For production use, xion-types should be made an installable gem
 # and added as a dependency, rather than using $LOAD_PATH manipulation.
 # This relative path assumes xion-types is a sibling directory to mob.
-xion_types_path = File.expand_path('../../../../xion-types/ruby/types', __FILE__)
+xion_types_path = File.expand_path('../../../../xion-types/ruby/lib/xion_types', __FILE__)
 $LOAD_PATH.unshift(xion_types_path) if File.directory?(xion_types_path)
 
 begin
@@ -26,7 +26,7 @@ begin
 rescue LoadError => e
   puts "⚠️  Failed to load xion-types protobuf files: #{e.message}"
   puts "Ensure xion-types Ruby protobufs are generated at:"
-  puts "  Expected structure: mob/../xion-types/ruby/types"
+  puts "  Expected structure: mob/../xion-types/ruby/lib/xion_types"
   puts "  Resolved path: #{xion_types_path}"
   exit 1
 end
@@ -36,7 +36,7 @@ end
 #
 # Prerequisites:
 # 1. xion-types Ruby protobuf files must be generated
-# 2. LOAD_PATH must include xion-types/ruby/types
+# 2. LOAD_PATH must include xion-types/ruby/lib/xion_types
 #
 # Run with: ruby ruby/test/test_typed_protobuf.rb
 class TestTypedProtobuf < Minitest::Test

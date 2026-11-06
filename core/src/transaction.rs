@@ -591,4 +591,138 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("fee not set"));
     }
+
+    #[cfg(feature = "rust-signer")]
+    mod sign_doc_account_numbers {
+        use super::TransactionBuilder;
+        use crate::crypto_signer::{CryptoSigner, SignerError};
+        use crate::rust_signer::RustSigner;
+        use crate::session::SessionMetadata;
+        use crate::session_signer::SessionSigner;
+        use crate::signing_strategy::BasicSigningStrategy;
+        use crate::types::{Coin, Fee};
+        use cosmrs::tendermint::chain::Id as ChainId;
+        use prost::Message;
+        use std::str::FromStr;
+        use std::sync::{Arc, Mutex};
+        use xion_types::types::cosmos_tx_v1beta1::{AuthInfo, SignDoc, TxRaw};
+
+        const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        const CHAIN_ID: &str = "xion-testnet-2";
+        const HIGH_BIT: u64 = 12_033_574_294_966_132_243;
+        const LEGACY: u64 = 37;
+
+        /// Delegates to a RustSigner and records the exact bytes it is asked to sign.
+        struct CapturingSigner {
+            inner: RustSigner,
+            signed: Mutex<Vec<Vec<u8>>>,
+        }
+
+        impl CryptoSigner for CapturingSigner {
+            fn address(&self) -> String {
+                self.inner.address()
+            }
+            fn public_key(&self) -> Vec<u8> {
+                self.inner.public_key()
+            }
+            fn address_prefix(&self) -> String {
+                self.inner.address_prefix()
+            }
+            fn sign_bytes(&self, message: Vec<u8>) -> std::result::Result<Vec<u8>, SignerError> {
+                self.signed.lock().unwrap().push(message.clone());
+                CryptoSigner::sign_bytes(&self.inner, message)
+            }
+        }
+
+        fn capturing_signer(path: Option<&str>) -> Arc<CapturingSigner> {
+            Arc::new(CapturingSigner {
+                inner: RustSigner::from_mnemonic(
+                    MNEMONIC.to_string(),
+                    "xion".to_string(),
+                    path.map(str::to_string),
+                )
+                .unwrap(),
+                signed: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn assert_signed(signer: &CapturingSigner, tx_bytes: &[u8], account_number: u64, sequence: u64) {
+            let signed = signer.signed.lock().unwrap();
+            assert_eq!(signed.len(), 1);
+            let sign_doc_bytes = &signed[0];
+
+            let sign_doc = SignDoc::decode(sign_doc_bytes.as_slice()).unwrap();
+            assert_eq!(sign_doc.account_number, account_number);
+            assert_eq!(sign_doc.chain_id, CHAIN_ID);
+            let auth_info = AuthInfo::decode(sign_doc.auth_info_bytes.as_slice()).unwrap();
+            assert_eq!(auth_info.signer_infos[0].sequence, sequence);
+
+            let tx_raw = TxRaw::decode(tx_bytes).unwrap();
+            assert_eq!(tx_raw.body_bytes, sign_doc.body_bytes);
+            assert_eq!(tx_raw.auth_info_bytes, sign_doc.auth_info_bytes);
+            let signature = &tx_raw.signatures[0];
+            assert!(signer
+                .inner
+                .verify_signature(sign_doc_bytes, signature)
+                .unwrap());
+
+            let zeroed = SignDoc {
+                account_number: 0,
+                ..sign_doc
+            }
+            .encode_to_vec();
+            assert!(!signer.inner.verify_signature(&zeroed, signature).unwrap());
+        }
+
+        #[test]
+        fn transaction_builder_signs_exact_account_number() {
+            for (account_number, sequence) in [(HIGH_BIT, 1), (LEGACY, 9)] {
+                let signer = capturing_signer(None);
+                let msg = super::super::messages::msg_send(
+                    &signer.address(),
+                    &signer.address(),
+                    vec![Coin::new("uxion", "1000")],
+                )
+                .unwrap();
+                let mut builder = TransactionBuilder::new(CHAIN_ID).unwrap();
+                builder
+                    .add_message(msg)
+                    .with_fee(Fee::new(vec![Coin::new("uxion", "5000")], 200_000));
+
+                let strategy = BasicSigningStrategy::new(signer.clone());
+                let tx_bytes = builder.sign(&strategy, account_number, sequence).unwrap();
+                assert_signed(&signer, &tx_bytes, account_number, sequence);
+            }
+        }
+
+        #[test]
+        fn session_signer_signs_exact_account_number() {
+            for (account_number, sequence) in [(HIGH_BIT, 1), (LEGACY, 9)] {
+                let granter = capturing_signer(None).address();
+                let session_key = capturing_signer(Some("m/44'/118'/0'/0/1"));
+                let metadata =
+                    SessionMetadata::with_duration(granter.clone(), session_key.address(), 3600);
+                let session_signer =
+                    SessionSigner::with_signer(session_key.clone(), metadata).unwrap();
+                let msg = super::super::messages::msg_send(
+                    &granter,
+                    &granter,
+                    vec![Coin::new("uxion", "1000")],
+                )
+                .unwrap();
+
+                let tx_bytes = session_signer
+                    .sign_transaction(
+                        vec![msg],
+                        &Fee::new(vec![Coin::new("uxion", "5000")], 200_000),
+                        &ChainId::from_str(CHAIN_ID).unwrap(),
+                        account_number,
+                        sequence,
+                        None,
+                    )
+                    .unwrap();
+                assert_signed(&session_key, &tx_bytes, account_number, sequence);
+            }
+        }
+    }
 }

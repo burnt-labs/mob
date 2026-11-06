@@ -33,24 +33,15 @@ class MobModule : Module() {
             mapOf("address" to address, "publicKeyHex" to pubKeyHex)
         }
 
-        AsyncFunction("createSignerFromPrivateKey") { privateKeyHex: String, prefix: String ->
-            val keyBytes = privateKeyHex.hexToByteArray()
-            val signer = RustSigner.fromPrivateKey(keyBytes.toList().map { it.toUByte() }, prefix)
-            val address = signer.address()
-            val pubKeyHex = signer.publicKeyHex()
-            signers[address] = signer
-            mapOf("address" to address, "publicKeyHex" to pubKeyHex)
-        }
-
         AsyncFunction("signBytes") { signerAddress: String, message: List<Int> ->
             val signer = signers[signerAddress]
                 ?: throw IllegalArgumentException("Signer not found: $signerAddress")
-            val msgBytes = message.map { it.toUByte() }
-            signer.signBytes(msgBytes).map { it.toInt() }
+            signer.signBytes(message.toBytes()).toIntList()
         }
 
         AsyncFunction("destroySigner") { address: String ->
             signers.remove(address)
+            Unit
         }
 
         // MARK: Client Management
@@ -75,6 +66,7 @@ class MobModule : Module() {
 
         AsyncFunction("destroyClient") { clientId: String ->
             clients.remove(clientId)
+            Unit
         }
 
         // MARK: Read Queries
@@ -84,8 +76,8 @@ class MobModule : Module() {
             val info = client.getAccount(address)
             mapOf(
                 "address" to info.address,
-                "accountNumber" to info.accountNumber,
-                "sequence" to info.sequence,
+                "accountNumber" to info.accountNumber.toString(),
+                "sequence" to info.sequence.toDouble(),
                 "pubKey" to info.pubKey
             )
         }
@@ -120,8 +112,7 @@ class MobModule : Module() {
 
         AsyncFunction("queryContractSmart") { clientId: String, contractAddress: String, queryMsg: List<Int> ->
             val client = requireClient(clientId)
-            val msgBytes = queryMsg.map { it.toUByte() }
-            client.queryContractSmart(contractAddress, msgBytes).map { it.toInt() }
+            client.queryContractSmart(contractAddress, queryMsg.toBytes()).toIntList()
         }
 
         // MARK: Transactions
@@ -134,11 +125,10 @@ class MobModule : Module() {
 
         AsyncFunction("executeContract") { clientId: String, contractAddress: String, msg: List<Int>, funds: List<Map<String, String>>, memo: String?, gasLimit: Long? ->
             val client = requireClient(clientId)
-            val msgBytes = msg.map { it.toUByte() }
             val fundCoins = parseCoins(funds)
             val gl = gasLimit?.toULong()
             serializeTxResponse(
-                client.executeContract(contractAddress, msgBytes, fundCoins, memo, gl)
+                client.executeContract(contractAddress, msg.toBytes(), fundCoins, null, null, memo, gl)
             )
         }
 
@@ -169,23 +159,24 @@ class MobModule : Module() {
             val metadata = SessionMetadata(
                 granter = granter,
                 grantee = grantee,
+                feeGranter = null,
+                feePayer = null,
                 createdAt = createdAt.toULong(),
                 expiresAt = expiresAt.toULong(),
                 description = description
             )
             val chainConfig = parseChainConfig(config)
-            mgr.activate(metadata, chainConfig)
+            mgr.activate(metadata, chainConfig, transport)
         }
 
         AsyncFunction("sessionExport") { sessionId: String ->
             val mgr = requireSessionManager(sessionId)
-            mgr.exportSession().map { it.toInt() }
+            mgr.exportSession().toIntList()
         }
 
         AsyncFunction("sessionRestore") { data: List<Int>, config: Map<String, Any?> ->
             val chainConfig = parseChainConfig(config)
-            val dataBytes = data.map { it.toUByte() }
-            val mgr = MobSessionManager.restore(dataBytes, chainConfig)
+            val mgr = MobSessionManager.restore(data.toBytes(), chainConfig, transport)
             val sessionId = nextSessionId()
             sessionManagers[sessionId] = mgr
             sessionId
@@ -194,6 +185,7 @@ class MobModule : Module() {
         AsyncFunction("sessionDeactivate") { sessionId: String ->
             sessionManagers[sessionId]?.deactivate()
             sessionManagers.remove(sessionId)
+            Unit
         }
 
         AsyncFunction("sessionIsActive") { sessionId: String ->
@@ -210,8 +202,7 @@ class MobModule : Module() {
 
         AsyncFunction("sessionSignBytes") { sessionId: String, message: List<Int> ->
             val mgr = requireSessionManager(sessionId)
-            val msgBytes = message.map { it.toUByte() }
-            mgr.signBytes(msgBytes).map { it.toInt() }
+            mgr.signBytes(message.toBytes()).toIntList()
         }
 
         AsyncFunction("sessionSend") { sessionId: String, toAddress: String, amount: List<Map<String, String>>, memo: String? ->
@@ -224,11 +215,10 @@ class MobModule : Module() {
         AsyncFunction("sessionExecuteContract") { sessionId: String, contractAddress: String, msg: List<Int>, funds: List<Map<String, String>>, memo: String?, gasLimit: Long? ->
             val mgr = requireSessionManager(sessionId)
             val client = mgr.client()
-            val msgBytes = msg.map { it.toUByte() }
             val fundCoins = parseCoins(funds)
             val gl = gasLimit?.toULong()
             serializeTxResponse(
-                client.executeContract(contractAddress, msgBytes, fundCoins, memo, gl)
+                client.executeContract(contractAddress, msg.toBytes(), fundCoins, null, null, memo, gl)
             )
         }
 
@@ -243,8 +233,7 @@ class MobModule : Module() {
         AsyncFunction("sessionQueryContractSmart") { sessionId: String, contractAddress: String, queryMsg: List<Int> ->
             val mgr = requireSessionManager(sessionId)
             val client = mgr.client()
-            val msgBytes = queryMsg.map { it.toUByte() }
-            client.queryContractSmart(contractAddress, msgBytes).map { it.toInt() }
+            client.queryContractSmart(contractAddress, queryMsg.toBytes()).toIntList()
         }
     }
 
@@ -303,7 +292,7 @@ class MobModule : Module() {
         return dicts.map { dict ->
             val typeUrl = dict["typeUrl"] as? String
                 ?: throw IllegalArgumentException("Message missing 'typeUrl'")
-            val value = (dict["value"] as? List<Int>)?.map { it.toUByte() }
+            val value = (dict["value"] as? List<Int>)?.toBytes()
                 ?: throw IllegalArgumentException("Message missing 'value'")
             Message(typeUrl = typeUrl, value = value)
         }
@@ -321,10 +310,8 @@ class MobModule : Module() {
     }
 }
 
-private fun String.hexToByteArray(): ByteArray {
-    val hex = if (startsWith("0x")) substring(2) else this
-    require(hex.length % 2 == 0) { "Hex string must have even length" }
-    return ByteArray(hex.length / 2) { i ->
-        hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
-    }
-}
+// JS passes and receives byte arrays as lists of 0..255 numbers.
+private fun List<Int>.toBytes(): ByteArray = ByteArray(size) { this[it].toByte() }
+
+private fun ByteArray.toIntList(): List<Int> = map { it.toInt() and 0xFF }
+

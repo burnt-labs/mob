@@ -27,7 +27,6 @@ use std::{str::FromStr, sync::Arc};
 pub struct Client {
     config: ChainConfig,
     rpc_client: NativeRpcClient,
-    transport: Arc<dyn HttpTransport>,
     signer: Option<Arc<dyn CryptoSigner>>,
     transaction_signer: Option<Arc<dyn TransactionSigner>>,
     account: Option<Account>,
@@ -363,12 +362,11 @@ impl Client {
 impl Client {
     /// Create a new RPC client with a native HTTP transport.
     pub fn new_with_transport(config: ChainConfig, transport: Arc<dyn HttpTransport>) -> Self {
-        let rpc_client = NativeRpcClient::new(config.rpc_endpoint.clone(), transport.clone());
+        let rpc_client = NativeRpcClient::new(config.rpc_endpoint.clone(), transport);
 
         Self {
             config,
             rpc_client,
-            transport,
             signer: None,
             transaction_signer: None,
             account: None,
@@ -540,92 +538,46 @@ impl Client {
         Ok(())
     }
 
-    /// Query account information via LCD REST endpoint (latest state).
-    /// Falls back to ABCI if LCD is not configured.
+    /// Query account number and sequence via ABCI `cosmos.auth.v1beta1.Query/AccountInfo`.
     async fn get_account_internal(&self, address: &str) -> Result<AccountInfo> {
         let _account_id = AccountId::from_str(address)
             .map_err(|e| MobError::Address(format!("Invalid address: {}", e)))?;
 
-        // Derive LCD endpoint from RPC endpoint
-        let lcd_endpoint = self
-            .config
-            .rpc_endpoint
-            .replace("rpc.", "api.")
-            .replace(":443", "");
+        use prost::Message;
+        let request = xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoRequest {
+            address: address.to_owned(),
+        };
 
-        let url = format!("{}/cosmos/auth/v1beta1/accounts/{}", lcd_endpoint, address);
-
-        // Query via platform-native HTTP transport
-        let response_bytes = self
-            .transport
-            .get(url)
+        let response = self
+            .rpc_client
+            .abci_query(
+                Some("/cosmos.auth.v1beta1.Query/AccountInfo".to_owned()),
+                request.encode_to_vec(),
+                None,
+                false,
+            )
+            .await
             .map_err(|e| MobError::Network(format!("Account query failed: {}", e)))?;
 
-        let body = String::from_utf8(response_bytes)
-            .map_err(|e| MobError::Network(format!("Invalid UTF-8 in account response: {}", e)))?;
+        if response.code.is_err() {
+            return Err(MobError::Account(format!(
+                "Account query failed (code {}): {}",
+                response.code.value(),
+                response.log
+            )));
+        }
 
-        // Parse JSON response
-        let json: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| MobError::Account(format!("Failed to parse account JSON: {}", e)))?;
-
-        // Extract account info — handle both BaseAccount and AbstractAccount types
-        let account = json
-            .get("account")
-            .ok_or_else(|| MobError::Account("No account field in response".to_string()))?;
-
-        // Try to get account_number and sequence from the account or nested base_account
-        let (account_number, sequence) = if let Some(base) = account.get("base_account") {
-            // AbstractAccount wraps a base_account
-            let num = base
-                .get("account_number")
-                .and_then(|v| {
-                    v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| {
-                        if s.is_empty() {
-                            v.as_u64()
-                        } else {
-                            s.parse().ok()
-                        }
-                    })
-                })
-                .unwrap_or(0);
-            let seq = base
-                .get("sequence")
-                .and_then(|v| {
-                    v.as_str().or_else(|| v.as_u64().map(|_| "")).and_then(|s| {
-                        if s.is_empty() {
-                            v.as_u64()
-                        } else {
-                            s.parse().ok()
-                        }
-                    })
-                })
-                .unwrap_or(0);
-            (num, seq)
-        } else {
-            // Direct BaseAccount
-            let num = account
-                .get("account_number")
-                .and_then(|v| {
-                    v.as_str()
-                        .and_then(|s| s.parse().ok())
-                        .or_else(|| v.as_u64())
-                })
-                .unwrap_or(0);
-            let seq = account
-                .get("sequence")
-                .and_then(|v| {
-                    v.as_str()
-                        .and_then(|s| s.parse().ok())
-                        .or_else(|| v.as_u64())
-                })
-                .unwrap_or(0);
-            (num, seq)
-        };
+        let info = xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoResponse::decode(
+            response.value.as_slice(),
+        )
+        .map_err(|e| MobError::Account(format!("Failed to decode account response: {}", e)))?
+        .info
+        .ok_or_else(|| MobError::Account("No account info in response".to_string()))?;
 
         Ok(AccountInfo {
             address: address.to_string(),
-            account_number,
-            sequence,
+            account_number: info.account_number,
+            sequence: info.sequence,
             pub_key: None,
         })
     }
@@ -1217,6 +1169,140 @@ mod tests {
         }
         fn get(&self, _url: String) -> std::result::Result<Vec<u8>, TransportError> {
             Err(TransportError::NetworkError("mock transport".to_string()))
+        }
+    }
+
+    const ACCOUNT_ADDRESS: &str = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4";
+
+    /// Answers `abci_query` JSON-RPC posts with a fixed result; rejects REST GETs.
+    struct AbciTransport {
+        reply: std::result::Result<(u32, Vec<u8>), String>,
+    }
+
+    impl HttpTransport for AbciTransport {
+        fn post(
+            &self,
+            _url: String,
+            body: Vec<u8>,
+        ) -> std::result::Result<Vec<u8>, TransportError> {
+            use prost::Message as ProstMessage;
+            let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(request["method"], "abci_query");
+            assert_eq!(
+                request["params"]["path"],
+                "/cosmos.auth.v1beta1.Query/AccountInfo"
+            );
+            let data = hex::decode(request["params"]["data"].as_str().unwrap()).unwrap();
+            let query =
+                xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoRequest::decode(
+                    data.as_slice(),
+                )
+                .unwrap();
+            assert_eq!(query.address, ACCOUNT_ADDRESS);
+
+            let (code, value) = self
+                .reply
+                .clone()
+                .map_err(TransportError::NetworkError)?;
+            let response = tendermint_rpc::endpoint::abci_query::Response {
+                response: tendermint_rpc::endpoint::abci_query::AbciQuery {
+                    code: code.into(),
+                    log: if code == 0 {
+                        String::new()
+                    } else {
+                        "account not found".to_string()
+                    },
+                    value,
+                    ..Default::default()
+                },
+            };
+            Ok(serde_json::to_vec(&serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "result": response,
+            }))
+            .unwrap())
+        }
+
+        fn get(&self, url: String) -> std::result::Result<Vec<u8>, TransportError> {
+            Err(TransportError::RequestFailed(format!(
+                "unexpected GET {}",
+                url
+            )))
+        }
+    }
+
+    fn query_account(
+        reply: std::result::Result<(u32, Vec<u8>), String>,
+    ) -> Result<AccountInfo> {
+        let config = ChainConfig::new(
+            "xion-testnet-2",
+            "https://rpc.xion-testnet-2.burnt.com:443",
+            "xion",
+        );
+        Client::new(config, Arc::new(AbciTransport { reply }))
+            .unwrap()
+            .get_account(ACCOUNT_ADDRESS.to_string())
+    }
+
+    fn account_info_response(account_number: u64, sequence: u64) -> Vec<u8> {
+        use prost::Message as ProstMessage;
+        xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoResponse {
+            info: Some(xion_types::types::cosmos_auth_v1beta1::BaseAccount {
+                address: ACCOUNT_ADDRESS.to_string(),
+                account_number,
+                sequence,
+                ..Default::default()
+            }),
+        }
+        .encode_to_vec()
+    }
+
+    #[test]
+    fn test_get_account_preserves_full_u64_account_number() {
+        for account_number in [
+            0,
+            37,
+            9_007_199_254_740_993,
+            9_223_372_036_854_775_808,
+            12_033_574_294_966_132_243,
+            u64::MAX,
+        ] {
+            let info = query_account(Ok((0, account_info_response(account_number, 7)))).unwrap();
+            assert_eq!(info.address, ACCOUNT_ADDRESS);
+            assert_eq!(info.account_number, account_number);
+            assert_eq!(info.sequence, 7);
+        }
+    }
+
+    #[test]
+    fn test_get_account_errors_are_not_zero_accounts() {
+        use prost::Message as ProstMessage;
+        let missing_info =
+            xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoResponse { info: None }
+                .encode_to_vec();
+
+        match query_account(Ok((0, missing_info))) {
+            Err(MobError::Account(msg)) => assert_eq!(msg, "No account info in response"),
+            other => panic!("expected missing info error, got {:?}", other),
+        }
+        match query_account(Ok((0, vec![0x0a, 0xff]))) {
+            Err(MobError::Account(msg)) => {
+                assert!(msg.starts_with("Failed to decode account response"), "{}", msg)
+            }
+            other => panic!("expected decode error, got {:?}", other),
+        }
+        match query_account(Err("connection reset".to_string())) {
+            Err(MobError::Network(msg)) => {
+                assert!(msg.starts_with("Account query failed"), "{}", msg)
+            }
+            other => panic!("expected network error, got {:?}", other),
+        }
+        match query_account(Ok((22, Vec::new()))) {
+            Err(MobError::Account(msg)) => {
+                assert_eq!(msg, "Account query failed (code 22): account not found")
+            }
+            other => panic!("expected NotFound error, got {:?}", other),
         }
     }
 

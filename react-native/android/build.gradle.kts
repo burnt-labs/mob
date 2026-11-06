@@ -1,6 +1,6 @@
 plugins {
-    kotlin("android") version "1.9.22"
     id("com.android.library")
+    kotlin("android")
 }
 
 group = "com.burnt.mob"
@@ -8,10 +8,11 @@ version = "0.1.0"
 
 android {
     namespace = "com.burnt.mob"
-    compileSdk = 34
+    compileSdk = rootProject.findProperty("compileSdkVersion")?.toString()?.toInt() ?: 34
 
     defaultConfig {
         minSdk = 24
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {
@@ -34,7 +35,7 @@ android {
 }
 
 dependencies {
-    implementation("expo:expo-modules-core:+")
+    implementation(project(":expo-modules-core"))
     implementation("net.java.dev.jna:jna:5.14.0@aar")
     implementation(kotlin("stdlib"))
 }
