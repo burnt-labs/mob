@@ -646,7 +646,12 @@ mod tests {
             })
         }
 
-        fn assert_signed(signer: &CapturingSigner, tx_bytes: &[u8], account_number: u64, sequence: u64) {
+        fn assert_signed(
+            signer: &CapturingSigner,
+            tx_bytes: &[u8],
+            account_number: u64,
+            sequence: u64,
+        ) {
             let signed = signer.signed.lock().unwrap();
             assert_eq!(signed.len(), 1);
             let sign_doc_bytes = &signed[0];

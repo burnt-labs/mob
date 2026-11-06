@@ -1193,17 +1193,13 @@ mod tests {
                 "/cosmos.auth.v1beta1.Query/AccountInfo"
             );
             let data = hex::decode(request["params"]["data"].as_str().unwrap()).unwrap();
-            let query =
-                xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoRequest::decode(
-                    data.as_slice(),
-                )
-                .unwrap();
+            let query = xion_types::types::cosmos_auth_v1beta1::QueryAccountInfoRequest::decode(
+                data.as_slice(),
+            )
+            .unwrap();
             assert_eq!(query.address, ACCOUNT_ADDRESS);
 
-            let (code, value) = self
-                .reply
-                .clone()
-                .map_err(TransportError::NetworkError)?;
+            let (code, value) = self.reply.clone().map_err(TransportError::NetworkError)?;
             let response = tendermint_rpc::endpoint::abci_query::Response {
                 response: tendermint_rpc::endpoint::abci_query::AbciQuery {
                     code: code.into(),
@@ -1232,9 +1228,7 @@ mod tests {
         }
     }
 
-    fn query_account(
-        reply: std::result::Result<(u32, Vec<u8>), String>,
-    ) -> Result<AccountInfo> {
+    fn query_account(reply: std::result::Result<(u32, Vec<u8>), String>) -> Result<AccountInfo> {
         let config = ChainConfig::new(
             "xion-testnet-2",
             "https://rpc.xion-testnet-2.burnt.com:443",
@@ -1288,7 +1282,11 @@ mod tests {
         }
         match query_account(Ok((0, vec![0x0a, 0xff]))) {
             Err(MobError::Account(msg)) => {
-                assert!(msg.starts_with("Failed to decode account response"), "{}", msg)
+                assert!(
+                    msg.starts_with("Failed to decode account response"),
+                    "{}",
+                    msg
+                )
             }
             other => panic!("expected decode error, got {:?}", other),
         }
