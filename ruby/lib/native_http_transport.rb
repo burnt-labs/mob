@@ -10,13 +10,11 @@ module Mob
   # bundle, avoiding the UnknownIssuer errors that occur with
   # rustls-native-certs on some platforms.
   class NativeHttpTransport
-    include Mob::HttpTransport
-
     def post(url, body)
       uri = URI.parse(url)
       request = Net::HTTP::Post.new(uri.request_uri)
       request['Content-Type'] = 'application/json'
-      request.body = body.pack('C*')
+      request.body = body
       perform(uri, request)
     end
 
@@ -41,8 +39,8 @@ module Mob
         )
       end
 
-      response.body.bytes
-    rescue Mob::TransportError
+      response.body.to_s.b
+    rescue Mob::TransportError::RequestFailed, Mob::TransportError::NetworkError
       raise
     rescue SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT,
            Net::OpenTimeout, Net::ReadTimeout, OpenSSL::SSL::SSLError => e

@@ -34,7 +34,8 @@ def chain_config():
         grpc_endpoint=None,
         address_prefix=ADDRESS_PREFIX,
         coin_type=118,
-        gas_price="0.025"
+        gas_price="0.025",
+        fee_granter=None,
     )
 
 

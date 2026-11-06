@@ -19,6 +19,20 @@ import type {
   Message,
 } from './types';
 
+const MAX_UINT64 = BigInt('18446744073709551615');
+
+/** Native bridges send uint64 account numbers as exact decimal strings. */
+function parseAccountNumber(value: unknown): bigint {
+  if (typeof value !== 'string' || !/^[0-9]+$/.test(value)) {
+    throw new Error('Invalid native account number');
+  }
+  const accountNumber = BigInt(value);
+  if (accountNumber > MAX_UINT64) {
+    throw new Error('Invalid native account number');
+  }
+  return accountNumber;
+}
+
 // --- Context state ---
 
 interface MobContextState {
@@ -220,7 +234,10 @@ export function MobProvider({ config, children }: MobProviderProps) {
   }, [readClientId]);
 
   const getAccount = useCallback(
-    (address: string) => MobModule.getAccount(requireReadClient(), address),
+    async (address: string): Promise<AccountInfo> => {
+      const info = await MobModule.getAccount(requireReadClient(), address);
+      return { ...info, accountNumber: parseAccountNumber(info.accountNumber) };
+    },
     [requireReadClient]
   );
 

@@ -59,7 +59,11 @@ interface MobNativeModule {
   destroyClient(clientId: string): Promise<void>;
 
   // Read queries
-  getAccount(clientId: string, address: string): Promise<AccountInfo>;
+  /** Low-level result: accountNumber is the exact decimal string from native code. */
+  getAccount(
+    clientId: string,
+    address: string
+  ): Promise<Omit<AccountInfo, 'accountNumber'> & { accountNumber: string }>;
 
   getBalance(clientId: string, address: string, denom: string): Promise<Coin>;
 

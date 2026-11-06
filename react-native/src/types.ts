@@ -27,7 +27,12 @@ export interface Fee {
 /** Account information */
 export interface AccountInfo {
   address: string;
-  accountNumber: number;
+  /**
+   * Full-range uint64 account number. Newer XION accounts exceed
+   * Number.MAX_SAFE_INTEGER, so arithmetic needs bigint operands and JSON
+   * persistence must serialize it with `.toString()`.
+   */
+  accountNumber: bigint;
   sequence: number;
   pubKey?: string;
 }

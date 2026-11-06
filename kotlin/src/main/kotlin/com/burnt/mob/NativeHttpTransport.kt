@@ -1,7 +1,7 @@
 package com.burnt.mob
 
 import uniffi.mob.HttpTransport
-import uniffi.mob.TransportError
+import uniffi.mob.TransportException
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
@@ -13,39 +13,38 @@ import java.net.URI
  * `UnknownIssuer` errors that occur with rustls-native-certs on Android.
  */
 class NativeHttpTransport : HttpTransport {
-    override fun post(url: String, body: List<UByte>): List<UByte> {
+    override fun post(url: String, body: ByteArray): ByteArray {
         val connection = openConnection(url)
         try {
             connection.requestMethod = "POST"
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")
 
-            val bodyBytes = ByteArray(body.size) { body[it].toByte() }
-            connection.outputStream.use { it.write(bodyBytes) }
+            connection.outputStream.use { it.write(body) }
 
             return readResponse(connection)
-        } catch (e: TransportError) {
+        } catch (e: TransportException) {
             throw e
         } catch (e: IOException) {
-            throw TransportError.NetworkError(e.message ?: "Unknown network error")
+            throw TransportException.NetworkException(e.message ?: "Unknown network error")
         } catch (e: Exception) {
-            throw TransportError.RequestFailed(e.message ?: "Unknown error")
+            throw TransportException.RequestFailed(e.message ?: "Unknown error")
         } finally {
             connection.disconnect()
         }
     }
 
-    override fun get(url: String): List<UByte> {
+    override fun get(url: String): ByteArray {
         val connection = openConnection(url)
         try {
             connection.requestMethod = "GET"
             return readResponse(connection)
-        } catch (e: TransportError) {
+        } catch (e: TransportException) {
             throw e
         } catch (e: IOException) {
-            throw TransportError.NetworkError(e.message ?: "Unknown network error")
+            throw TransportException.NetworkException(e.message ?: "Unknown network error")
         } catch (e: Exception) {
-            throw TransportError.RequestFailed(e.message ?: "Unknown error")
+            throw TransportException.RequestFailed(e.message ?: "Unknown error")
         } finally {
             connection.disconnect()
         }
@@ -55,18 +54,18 @@ class NativeHttpTransport : HttpTransport {
         return try {
             URI(url).toURL().openConnection() as HttpURLConnection
         } catch (e: Exception) {
-            throw TransportError.RequestFailed("Invalid URL: $url")
+            throw TransportException.RequestFailed("Invalid URL: $url")
         }
     }
 
-    private fun readResponse(connection: HttpURLConnection): List<UByte> {
+    private fun readResponse(connection: HttpURLConnection): ByteArray {
         val responseCode = connection.responseCode
         if (responseCode !in 200..299) {
             val errorBody = try {
                 connection.errorStream?.readBytes()?.decodeToString() ?: ""
             } catch (_: Exception) { "" }
-            throw TransportError.RequestFailed("HTTP $responseCode: $errorBody")
+            throw TransportException.RequestFailed("HTTP $responseCode: $errorBody")
         }
-        return connection.inputStream.use { it.readBytes() }.map { it.toUByte() }
+        return connection.inputStream.use { it.readBytes() }
     }
 }

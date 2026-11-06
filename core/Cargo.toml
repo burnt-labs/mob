@@ -24,7 +24,7 @@ default = ["rpc-client", "uniffi-bindings", "rust-signer", "std-transport"]
 # Not needed when native code provides the transport (iOS/Android).
 std-transport = ["ureq"]
 # RPC client with tokio runtime - for native FFI (Python, Ruby, Kotlin, Swift)
-rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc", "tonic"]
+rpc-client = ["tokio", "cosmrs/rpc", "cosmrs/grpc", "tendermint-rpc"]
 # UniFFI bindings - for Python, Ruby, Kotlin, Swift
 uniffi-bindings = ["uniffi", "uniffi?/tokio"]
 # Rust signer implementation - pure Rust cryptography with BIP32/BIP39 support
@@ -34,20 +34,18 @@ wasm = []
 
 [dependencies]
 # UniFFI - optional, only for native FFI bindings
-uniffi = { version = "0.30", features = ["cli"], optional = true }
+uniffi = { version = "0.32", features = ["cli"], optional = true }
 
 # cosmrs - make rpc and grpc optional
-xion-types = { git = "https://github.com/burnt-labs/xion-types", features = ["xion"]}
+xion-types = { git = "https://github.com/burnt-labs/xion-types", rev = "8ea41ff91e81f749406d8e2361ffcae80c91be31", features = ["xion"] }
 cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
-tendermint = "0.37"
+# tendermint and tendermint-rpc track the versions cosmrs depends on
+tendermint = "0.40"
 # tendermint-rpc - optional for WASM
-tendermint-rpc = { version = "0.37", optional = true }
+tendermint-rpc = { version = "0.40", optional = true }
 
 # Async runtime - optional for WASM
 tokio = { version = "1", features = ["full"], optional = true }
-
-# gRPC - optional for WASM
-tonic = { version = "0.12", optional = true }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -63,17 +61,17 @@ sha2 = { version = "0.10", optional = true }
 getrandom = "0.2"
 
 # HTTP transport for Rust-only usage (optional, not needed for mobile)
-ureq = { version = "2", optional = true }
+ureq = { version = "3", optional = true }
 
 # Utilities
 hex = "0.4"
-thiserror = "1"
+thiserror = "2"
 async-trait = "0.1"
 prost = "0.13"
 prost-types = "0.13"
 
 [build-dependencies]
-uniffi = { version = "0.30", features = ["build"], optional = true }
+uniffi = { version = "0.32", features = ["build"], optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"

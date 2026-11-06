@@ -38,7 +38,8 @@ class IntegrationTest {
             grpcEndpoint = null,
             addressPrefix = ADDRESS_PREFIX,
             coinType = 118u,
-            gasPrice = "0.025"
+            gasPrice = "0.025",
+            feeGranter = null
         )
 
         signer = RustSigner.fromMnemonic(

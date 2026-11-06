@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::http_transport::{HttpTransport, TransportError};
 
 /// An HTTP transport using `ureq` for Rust-only (non-mobile) usage.
@@ -23,29 +21,17 @@ impl Default for UreqTransport {
 
 impl HttpTransport for UreqTransport {
     fn post(&self, url: String, body: Vec<u8>) -> Result<Vec<u8>, TransportError> {
-        let response = ureq::post(&url)
-            .set("Content-Type", "application/json")
-            .send_bytes(&body)
-            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
-
-        let mut buf = Vec::new();
-        response
-            .into_reader()
-            .read_to_end(&mut buf)
-            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
-        Ok(buf)
+        ureq::post(&url)
+            .header("Content-Type", "application/json")
+            .send(body)
+            .and_then(|mut response| response.body_mut().read_to_vec())
+            .map_err(|e| TransportError::NetworkError(e.to_string()))
     }
 
     fn get(&self, url: String) -> Result<Vec<u8>, TransportError> {
-        let response = ureq::get(&url)
+        ureq::get(&url)
             .call()
-            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
-
-        let mut buf = Vec::new();
-        response
-            .into_reader()
-            .read_to_end(&mut buf)
-            .map_err(|e| TransportError::NetworkError(e.to_string()))?;
-        Ok(buf)
+            .and_then(|mut response| response.body_mut().read_to_vec())
+            .map_err(|e| TransportError::NetworkError(e.to_string()))
     }
 }
