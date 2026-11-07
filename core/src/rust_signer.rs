@@ -14,18 +14,26 @@ use cosmrs::{
 use k256::ecdsa::{signature::hazmat::PrehashSigner, Signature, SigningKey as K256SigningKey};
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
 
 /// Pure Rust implementation of the CryptoSigner trait
 ///
 /// This signer uses Rust's k256 and bip32 libraries for all cryptographic operations.
 /// It implements BIP39 mnemonic support and BIP32 hierarchical deterministic key derivation.
-#[derive(Debug)]
 #[cfg_attr(feature = "uniffi-bindings", derive(uniffi::Object))]
 pub struct RustSigner {
-    signing_key: Vec<u8>, // Store as bytes instead of SigningKey (not Clone)
+    signing_key: Zeroizing<[u8; 32]>,
     address: AccountId,
     pub_key: Vec<u8>,
     address_prefix: String,
+}
+
+impl std::fmt::Debug for RustSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RustSigner")
+            .field("address", &self.address)
+            .finish_non_exhaustive()
+    }
 }
 
 #[cfg_attr(feature = "uniffi-bindings", uniffi::export)]
@@ -37,6 +45,7 @@ impl RustSigner {
         address_prefix: String,
         derivation_path: Option<String>,
     ) -> Result<Self> {
+        let mnemonic = Zeroizing::new(mnemonic);
         Self::from_mnemonic_internal(&mnemonic, &address_prefix, derivation_path.as_deref())
     }
 
@@ -81,9 +90,9 @@ impl RustSigner {
         // Derive the private key
         let seed = mnemonic.to_seed("");
         let child_xprv = XPrv::derive_from_path(&seed, &derivation_path)?;
-        let private_key = child_xprv.to_bytes();
+        let private_key = Zeroizing::new(child_xprv.to_bytes());
 
-        Self::from_private_key(&private_key, address_prefix)
+        Self::from_private_key(private_key.as_ref(), address_prefix)
     }
 
     /// Create a new signer from a private key (32 bytes)
@@ -103,7 +112,7 @@ impl RustSigner {
         let address = Self::public_key_to_address(&pub_key, address_prefix)?;
 
         Ok(Self {
-            signing_key: private_key.to_vec(),
+            signing_key: Zeroizing::new(private_key.try_into().expect("validated key length")),
             address,
             pub_key: pub_key.to_vec(),
             address_prefix: address_prefix.to_string(),
@@ -117,7 +126,7 @@ impl RustSigner {
 
     /// Sign arbitrary bytes (internal use)
     fn sign_bytes_internal(&self, message: &[u8]) -> Result<Vec<u8>> {
-        let k256_key = K256SigningKey::from_slice(&self.signing_key)
+        let k256_key = K256SigningKey::from_slice(self.signing_key.as_ref())
             .map_err(|e| MobError::Signing(format!("Failed to create signing key: {}", e)))?;
 
         // Hash the message with SHA256 first
@@ -225,6 +234,16 @@ mod tests {
     use super::*;
     use crate::crypto_signer::CryptoSigner;
     use std::sync::Arc;
+
+    #[test]
+    fn debug_does_not_expose_private_key() {
+        let private_key = [0x42; 32];
+        let signer = RustSigner::from_private_key(&private_key, "xion").unwrap();
+        let debug = format!("{signer:?}");
+        assert!(debug.contains(&signer.address()));
+        assert!(!debug.contains(&format!("{private_key:?}")));
+        assert!(!debug.contains(&hex::encode(private_key)));
+    }
 
     #[test]
     fn test_rust_signer_from_mnemonic() {

@@ -5,11 +5,15 @@ on:
     branches: [ main ]
     paths:
       - 'core/**'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
       - '.github/workflows/core.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'core/**'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
       - '.github/workflows/core.yml'
 
 jobs:
@@ -59,3 +63,43 @@ jobs:
     - name: Run doc tests
       working-directory: core
       run: cargo test --doc --verbose
+
+  rust-signer:
+    runs-on: ubicloud-standard-2
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Test pure Rust signing without RPC or UniFFI
+      run: cargo test -p mob --lib --no-default-features --features rust-signer
+
+  rust-signer-mobile:
+    runs-on: ubicloud-standard-2
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-ios
+          - aarch64-apple-ios-sim
+          - aarch64-linux-android
+          - armv7-linux-androideabi
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    - name: Set up Android SDK
+      if: contains(matrix.target, 'android')
+      uses: android-actions/setup-android@v4.0.4
+    - name: Install Android NDK
+      if: contains(matrix.target, 'android')
+      run: |
+        sdkmanager "ndk;27.1.12297006"
+        echo "$ANDROID_HOME/ndk/27.1.12297006/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
+    - name: Cross-compile signing primitives
+      env:
+        CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: aarch64-linux-android28-clang
+        CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER: armv7a-linux-androideabi28-clang
+        CC_aarch64_linux_android: aarch64-linux-android28-clang
+        CC_armv7_linux_androideabi: armv7a-linux-androideabi28-clang
+        TARGET: ${{ matrix.target }}
+      run: cargo check -p mob --lib --no-default-features --features rust-signer --target "$TARGET"

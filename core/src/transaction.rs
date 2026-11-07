@@ -343,6 +343,62 @@ pub mod messages {
         })
     }
 
+    /// Build a MsgInstantiateContract2 with a caller-supplied deterministic salt.
+    #[allow(clippy::too_many_arguments)]
+    pub fn msg_instantiate_contract2(
+        sender: &str,
+        admin: Option<&str>,
+        code_id: u64,
+        label: &str,
+        msg: &[u8],
+        funds: Vec<Coin>,
+        salt: &[u8],
+        fix_msg: bool,
+    ) -> Result<Any> {
+        use prost::Name;
+        use xion_types::types::cosmwasm_wasm_v1::MsgInstantiateContract2;
+
+        let sender = AccountId::from_str(sender)
+            .map_err(|e| MobError::Transaction(format!("Invalid sender address: {}", e)))?;
+        let admin = admin
+            .map(|address| {
+                AccountId::from_str(address)
+                    .map_err(|e| MobError::Transaction(format!("Invalid admin address: {}", e)))
+            })
+            .transpose()?;
+        let funds =
+            funds
+                .into_iter()
+                .map(|coin| {
+                    let denom: cosmrs::Denom = coin.denom.parse().map_err(|e| {
+                        MobError::Transaction(format!("Invalid funds denom: {}", e))
+                    })?;
+                    let amount: cosmrs::Amount = coin.amount.parse().map_err(|e| {
+                        MobError::Transaction(format!("Invalid funds amount: {}", e))
+                    })?;
+                    Ok(xion_types::types::cosmos_base_v1beta1::Coin {
+                        denom: denom.to_string(),
+                        amount: amount.to_string(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+        let message = MsgInstantiateContract2 {
+            sender: sender.to_string(),
+            admin: admin.map(|address| address.to_string()).unwrap_or_default(),
+            code_id,
+            label: label.to_string(),
+            msg: msg.to_vec(),
+            funds,
+            salt: salt.to_vec(),
+            fix_msg,
+        };
+        Ok(Any {
+            type_url: MsgInstantiateContract2::type_url(),
+            value: message.encode_to_vec(),
+        })
+    }
+
     /// Build a MsgExec that wraps inner messages for authz execution
     pub fn msg_exec(grantee: &str, inner_msgs: Vec<Any>) -> Result<Any> {
         use prost::Name;
@@ -440,6 +496,89 @@ mod tests {
     }
 
     #[test]
+    fn instantiate2_matches_cosmjs_wire_vector() {
+        let sender = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4";
+        let message = super::messages::msg_instantiate_contract2(
+            sender,
+            Some(sender),
+            9_007_199_254_740_993,
+            "native",
+            br#"{"a":1}"#,
+            vec![Coin::new("uxion", "9007199254740993")],
+            &[0, 255, 16],
+            true,
+        )
+        .unwrap();
+        // cosmjs-types 0.11.0 MsgInstantiateContract2.encode, using the inputs above.
+        let expected = hex::decode(concat!(
+            "0a2b78696f6e3134797939326165386571307133657a79396e6173756d74363568776467727976706b66306134",
+            "122b78696f6e3134797939326165386571307133657a79396e6173756d74363568776467727976706b66306134",
+            "18818080808080801022066e61746976652a077b2261223a317d",
+            "32190a057578696f6e1210393030373139393235343734303939333a0300ff104001",
+        ))
+        .unwrap();
+        assert_eq!(
+            message.type_url,
+            "/cosmwasm.wasm.v1.MsgInstantiateContract2"
+        );
+        assert_eq!(message.value, expected);
+    }
+
+    #[test]
+    fn instantiate2_without_admin_or_funds_keeps_proto_defaults() {
+        use prost::Message;
+        use xion_types::types::cosmwasm_wasm_v1::MsgInstantiateContract2;
+
+        let sender = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4";
+        let message = super::messages::msg_instantiate_contract2(
+            sender,
+            None,
+            1,
+            "",
+            b"{}",
+            vec![],
+            b"salt",
+            false,
+        )
+        .unwrap();
+        let decoded = MsgInstantiateContract2::decode(message.value.as_slice()).unwrap();
+        assert_eq!(decoded.sender, sender);
+        assert!(decoded.admin.is_empty());
+        assert!(decoded.funds.is_empty());
+        assert!(!decoded.fix_msg);
+    }
+
+    #[test]
+    fn instantiate2_rejects_invalid_addresses_and_funds() {
+        let address = "xion14yy92ae8eq0q3ezy9nasumt65hwdgryvpkf0a4";
+        for (sender, admin, denom, amount) in [
+            ("invalid", None, "uxion", "1"),
+            (address, Some("invalid"), "uxion", "1"),
+            (address, None, "!", "1"),
+            (address, None, "uxion", "-1"),
+            (address, None, "uxion", "1.5"),
+            (
+                address,
+                None,
+                "uxion",
+                "340282366920938463463374607431768211456",
+            ),
+        ] {
+            assert!(super::messages::msg_instantiate_contract2(
+                sender,
+                admin,
+                1,
+                "test",
+                b"{}",
+                vec![Coin::new(denom, amount)],
+                b"salt",
+                false,
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
     fn test_calculate_fee() {
         let fee = calculate_fee(200_000, "0.025", "uxion").unwrap();
         assert_eq!(fee.gas_limit, 200_000);
@@ -509,6 +648,7 @@ mod tests {
         assert_eq!(fee.amount[0].amount, "1");
     }
 
+    #[cfg(feature = "rust-signer")]
     #[test]
     fn test_zero_fee_for_simulation() {
         use crate::rust_signer::RustSigner;
@@ -572,6 +712,7 @@ mod tests {
             .contains("at least one message"));
     }
 
+    #[cfg(feature = "rust-signer")]
     #[test]
     fn test_transaction_builder_no_fee() {
         use crate::rust_signer::RustSigner;
@@ -602,6 +743,7 @@ mod tests {
         use crate::signing_strategy::BasicSigningStrategy;
         use crate::types::{Coin, Fee};
         use cosmrs::tendermint::chain::Id as ChainId;
+        use k256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
         use prost::Message;
         use std::str::FromStr;
         use std::sync::{Arc, Mutex};
@@ -609,8 +751,18 @@ mod tests {
 
         const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
         const CHAIN_ID: &str = "xion-testnet-2";
-        const HIGH_BIT: u64 = 12_033_574_294_966_132_243;
-        const LEGACY: u64 = 37;
+        const CASES: &[(u64, u64)] = &[
+            (0, 0),
+            (37, 9),
+            (9_007_199_254_740_993, 1),
+            (9_223_372_036_854_775_808, 2),
+            (12_033_574_294_966_132_243, 3),
+            (u64::MAX, 4),
+            (37, 9_007_199_254_740_993),
+            (37, 9_223_372_036_854_775_808),
+            (37, 12_033_574_294_966_132_243),
+            (37, u64::MAX),
+        ];
 
         /// Delegates to a RustSigner and records the exact bytes it is asked to sign.
         struct CapturingSigner {
@@ -665,23 +817,21 @@ mod tests {
             let tx_raw = TxRaw::decode(tx_bytes).unwrap();
             assert_eq!(tx_raw.body_bytes, sign_doc.body_bytes);
             assert_eq!(tx_raw.auth_info_bytes, sign_doc.auth_info_bytes);
-            let signature = &tx_raw.signatures[0];
-            assert!(signer
-                .inner
-                .verify_signature(sign_doc_bytes, signature)
-                .unwrap());
+            let signature = Signature::from_slice(&tx_raw.signatures[0]).unwrap();
+            let verifier = VerifyingKey::from_sec1_bytes(&signer.public_key()).unwrap();
+            assert!(verifier.verify(sign_doc_bytes, &signature).is_ok());
 
-            let zeroed = SignDoc {
-                account_number: 0,
+            let wrong_account = SignDoc {
+                account_number: if account_number == 0 { 1 } else { 0 },
                 ..sign_doc
             }
             .encode_to_vec();
-            assert!(!signer.inner.verify_signature(&zeroed, signature).unwrap());
+            assert!(verifier.verify(&wrong_account, &signature).is_err());
         }
 
         #[test]
         fn transaction_builder_signs_exact_account_number() {
-            for (account_number, sequence) in [(HIGH_BIT, 1), (LEGACY, 9)] {
+            for &(account_number, sequence) in CASES {
                 let signer = capturing_signer(None);
                 let msg = super::super::messages::msg_send(
                     &signer.address(),
@@ -702,7 +852,7 @@ mod tests {
 
         #[test]
         fn session_signer_signs_exact_account_number() {
-            for (account_number, sequence) in [(HIGH_BIT, 1), (LEGACY, 9)] {
+            for &(account_number, sequence) in CASES {
                 let granter = capturing_signer(None).address();
                 let session_key = capturing_signer(Some("m/44'/118'/0'/0/1"));
                 let metadata =
