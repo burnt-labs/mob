@@ -70,6 +70,19 @@ cargo test
 cargo run --example basic_usage
 ```
 
+For a native client that supplies transport, build the signing primitives without
+RPC, the built-in HTTP transport or Mob's UniFFI bindings:
+
+```bash
+cargo test -p mob --lib --no-default-features --features rust-signer
+cargo build -p mob --lib --no-default-features --features rust-signer
+```
+
+`RustSigner` wipes owned private-key buffers and mnemonic/derivation temporaries
+on drop; callers remain responsible for borrowed keys and copies outside Mob.
+`messages::msg_instantiate_contract2` builds the standard CosmWasm message,
+validating sender, optional admin and funds before encoding.
+
 ## Usage
 
 ### Rust - Session Key Signing (Recommended)

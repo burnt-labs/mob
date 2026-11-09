@@ -80,7 +80,7 @@ impl SessionSigner {
     ///
     /// Note: This constructor is only available with the `rust-signer` feature for FFI.
     /// Rust code can use `with_signer()` to accept any CryptoSigner implementation.
-    #[uniffi::constructor]
+    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
     pub fn new(session_key: Arc<RustSigner>, metadata: SessionMetadata) -> Result<Self> {
         // Validate session on creation
         metadata.validate()?;
@@ -94,13 +94,14 @@ impl SessionSigner {
     /// Create a session signer from a private key with duration
     ///
     /// Note: This constructor is only available with the `rust-signer` feature.
-    #[uniffi::constructor]
+    #[cfg_attr(feature = "uniffi-bindings", uniffi::constructor)]
     pub fn from_private_key(
         private_key: Vec<u8>,
         address_prefix: String,
         granter_address: String,
         duration_seconds: u64,
     ) -> Result<Self> {
+        let private_key = zeroize::Zeroizing::new(private_key);
         let signer = RustSigner::from_private_key(&private_key, &address_prefix)?;
         let grantee_address = signer.address();
 
@@ -311,7 +312,7 @@ impl SessionSigner {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rust-signer"))]
 mod tests {
     use super::*;
 

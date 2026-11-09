@@ -58,6 +58,7 @@
 //! ```
 
 pub mod account;
+#[cfg(feature = "rpc-client")]
 pub mod client;
 pub mod crypto_signer;
 pub mod error;
