@@ -32,7 +32,7 @@ mob/
 **Core Library:**
 - Rust (edition 2021)
 - UniFFI 0.32 for cross-language bindings
-- xion-types (commit 8ea41ff91e81f749406d8e2361ffcae80c91be31) for protobuf types
+- xion-types (commit 7adc0ecf1695c5a9540bb02dcd141593da1fdccc) for protobuf types
 - prost 0.13 / prost-types 0.13 for protobuf encoding
 - cosmrs 0.22 for Cosmos SDK integration
 - Optional features: rpc-client, uniffi-bindings, rust-signer

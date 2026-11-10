@@ -38,7 +38,7 @@ wasm = []
 uniffi = { version = "0.32", features = ["cli"], optional = true }
 
 # cosmrs - make rpc and grpc optional
-xion-types = { git = "https://github.com/burnt-labs/xion-types", rev = "a9f98d407e40de9d15f8b815b3fa7a6b062e60f1", default-features = false, features = ["xion", "cosmwasm"] }
+xion-types = { git = "https://github.com/burnt-labs/xion-types", rev = "7adc0ecf1695c5a9540bb02dcd141593da1fdccc", default-features = false, features = ["xion", "cosmwasm"] }
 cosmrs = { version = "0.22", features = ["cosmwasm"], default-features = false }
 # tendermint and tendermint-rpc track the versions cosmrs depends on
 tendermint = "0.40"
